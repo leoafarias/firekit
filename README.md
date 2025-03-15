@@ -1,6 +1,6 @@
-# Firekit
+# TorchKit
 
-[![npm version](https://badge.fury.io/js/firekit.svg)](https://badge.fury.io/js/firekit)
+[![npm version](https://badge.fury.io/js/torchkit.svg)](https://badge.fury.io/js/torchkit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A decorator-based TypeScript SDK for Firebase that provides a clean, type-safe API for working with Firestore and Realtime Database.
@@ -20,12 +20,12 @@ A decorator-based TypeScript SDK for Firebase that provides a clean, type-safe A
 ## Installation
 
 ```bash
-npm install firekit firebase-admin reflect-metadata
+npm install torchkit firebase-admin reflect-metadata
 # or
-yarn add firekit firebase-admin reflect-metadata
+yarn add torchkit firebase-admin reflect-metadata
 ```
 
-> **Note**: Firekit requires `reflect-metadata` for decorators to work properly. Make sure to import it once in your application's entry point.
+> **Note**: TorchKit requires `reflect-metadata` for decorators to work properly. Make sure to import it once in your application's entry point.
 
 ## Quick Start
 
@@ -51,7 +51,7 @@ import {
   CreatedAt,
   UpdatedAt,
   Subcollection,
-} from "firekit";
+} from "torchkit";
 
 @Collection("users")
 class User {
@@ -139,10 +139,10 @@ class CustomComment {
 ### Use the Repository
 
 ```typescript
-import { Firekit } from "firekit";
+import { TorchKit } from "torchkit";
 
 // Get a repository for the User entity
-const userRepo = Firekit.getRepository(User);
+const userRepo = TorchKit.getRepository(User);
 
 // Create a new user
 async function createUser() {
@@ -200,20 +200,20 @@ async function deleteUser(id: string) {
 ### Working with Subcollections
 
 ```typescript
-import { Firekit } from "firekit";
+import { TorchKit } from "torchkit";
 
 // First, get a regular repository for posts
-const postRepo = Firekit.getRepository(Post);
+const postRepo = TorchKit.getRepository(Post);
 
 // Create a post
 const post = await postRepo.create({
-  title: "Getting Started with Firekit",
-  content: "Firekit is an amazing TypeScript SDK for Firebase...",
+  title: "Getting Started with TorchKit",
+  content: "TorchKit is an amazing TypeScript SDK for Firebase...",
   authorId: "user123",
 });
 
 // Get a repository for the comments subcollection of a specific post
-const commentsRepo = Firekit.getSubcollectionRepository(Comment, post.id);
+const commentsRepo = TorchKit.getSubcollectionRepository(Comment, post.id);
 
 // Add a comment to the post
 const comment = await commentsRepo.create({
@@ -242,7 +242,7 @@ if (postWithComments) {
 ### Working with Nested Entities
 
 ```typescript
-import { NestedEntityRepository, Firekit } from "firekit";
+import { NestedEntityRepository, TorchKit } from "torchkit";
 
 // Create a nested entity repository for users and their profiles
 const userProfileRepo = new NestedEntityRepository(
@@ -290,7 +290,7 @@ async function loadUserWithProfile(userId: string) {
 ### Using the Realtime Database
 
 ```typescript
-import { RealtimeRepository } from "firekit";
+import { RealtimeRepository } from "torchkit";
 
 // Create a repository for the realtime database
 const chatRepo = new RealtimeRepository<{
@@ -392,14 +392,14 @@ Marks a property to be automatically updated with the update timestamp.
 updatedAt: Date;
 ```
 
-### Firekit
+### TorchKit
 
 #### `getRepository<T>(entityClass: new () => T): EntityRepository<T>`
 
 Gets a repository for an entity class.
 
 ```typescript
-const userRepo = Firekit.getRepository(User);
+const userRepo = TorchKit.getRepository(User);
 ```
 
 #### `getSubcollectionRepository<T>(entityClass: new () => T, parentId: string): EntityRepository<T>`
@@ -407,7 +407,7 @@ const userRepo = Firekit.getRepository(User);
 Gets a repository for a subcollection of a specific parent document.
 
 ```typescript
-const commentsRepo = Firekit.getSubcollectionRepository(Comment, postId);
+const commentsRepo = TorchKit.getSubcollectionRepository(Comment, postId);
 ```
 
 #### `clearCache(): void`
@@ -415,7 +415,7 @@ const commentsRepo = Firekit.getSubcollectionRepository(Comment, postId);
 Clears the repository cache.
 
 ```typescript
-Firekit.clearCache();
+TorchKit.clearCache();
 ```
 
 ### EntityRepository
@@ -561,7 +561,7 @@ MIT
 
 ## Firebase Setup
 
-To use Firekit with your Firebase project, you need to set up Firebase credentials:
+To use TorchKit with your Firebase project, you need to set up Firebase credentials:
 
 1. Create a Firebase project in the [Firebase Console](https://console.firebase.google.com/)
 
@@ -599,7 +599,7 @@ Note: The `serviceAccountKey.json` file contains sensitive information and shoul
 
 ## Firebase Realtime Database
 
-Firekit supports Firebase Realtime Database operations through the `RealtimeRepository` class. This repository provides CRUD operations, advanced query capabilities, and real-time updates for interacting with your Firebase RTDB.
+TorchKit supports Firebase Realtime Database operations through the `RealtimeRepository` class. This repository provides CRUD operations, advanced query capabilities, and real-time updates for interacting with your Firebase RTDB.
 
 ### Features
 
@@ -611,7 +611,7 @@ Firekit supports Firebase Realtime Database operations through the `RealtimeRepo
 ### Usage Example
 
 ```typescript
-import { RealtimeRepository } from "firekit";
+import { RealtimeRepository } from "torchkit";
 
 interface ChatMessage {
   text: string;
@@ -657,6 +657,38 @@ admin.initializeApp({
 
 This configuration is essential for the Realtime Database to function correctly.
 
+## CI/CD Pipeline
+
+This project uses GitHub Actions for continuous integration and deployment:
+
+### Automated Workflow
+
+1. **Testing & Linting**: On every push and pull request to the main branch, the workflow:
+
+   - Runs all unit tests
+   - Verifies Firebase connectivity
+   - Executes TypeScript Firebase tests (Firestore and Realtime Database)
+   - Performs code linting
+
+2. **Deployment**: When a new version tag (e.g., `v1.0.0`) is pushed:
+   - All tests and linting are run
+   - If successful, the package is automatically published to npm
+
+### Setting Up Secrets
+
+To use the CI/CD pipeline, you need to set up the following GitHub secrets:
+
+- `FIREBASE_SERVICE_ACCOUNT_KEY`: Your Firebase service account key JSON (base64 encoded)
+- `NPM_TOKEN`: Your npm access token for publishing
+
+### Manual Release Process
+
+1. Update the version in `package.json`
+2. Commit changes: `git commit -am "Release v1.0.0"`
+3. Create a new tag: `git tag v1.0.0`
+4. Push changes and tags: `git push && git push --tags`
+5. GitHub Actions will automatically publish to npm
+
 ---
 
-_This section is automatically maintained by Firekit documentation._
+_This section is automatically maintained by TorchKit documentation._

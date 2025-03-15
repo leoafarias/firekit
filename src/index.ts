@@ -8,7 +8,7 @@ export {
   UpdatedAt,
 } from "./decorators";
 // Export entity manager
-export { Firekit, FirekitManager } from "./manager/entity-manager";
+export { FirekitManager, TorchKit } from "./manager/entity-manager";
 export { FirestoreBatchHelper } from "./repository/batch-helper";
 // Export repository classes
 export { EntityRepository } from "./repository/entity.repository";

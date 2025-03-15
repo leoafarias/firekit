@@ -4,9 +4,9 @@ import {
   Collection,
   CreatedAt,
   Field,
-  Firekit,
   ID,
   Subcollection,
+  TorchKit,
   UpdatedAt,
 } from "../../src";
 import { initializeFirebase } from "../../src/firebase-init";
@@ -93,12 +93,12 @@ async function testSubcollectionCrud() {
     console.log("\n=== Testing Subcollection CRUD Operations ===\n");
 
     // Get post repository
-    const postRepo = Firekit.getRepository(Post);
+    const postRepo = TorchKit.getRepository(Post);
 
     // Create a post
     console.log("Creating a post...");
     const post = await postRepo.create({
-      title: "Testing Firekit Subcollections",
+      title: "Testing TorchKit Subcollections",
       content: "This is a test post for subcollections",
       authorId: "test-user-123",
       tags: ["test", "subcollections"],
@@ -110,7 +110,7 @@ async function testSubcollectionCrud() {
 
     // Get comments repository for this post
     console.log("\nGetting comments repository for the post...");
-    const commentsRepo = Firekit.getSubcollectionRepository(Comment, post.id);
+    const commentsRepo = TorchKit.getSubcollectionRepository(Comment, post.id);
 
     // Create a comment
     console.log("\nCreating a comment...");
@@ -198,7 +198,7 @@ async function testCustomNamedSubcollection() {
     console.log("\n=== Testing Custom Named Subcollection ===\n");
 
     // Get post repository
-    const postRepo = Firekit.getRepository(Post);
+    const postRepo = TorchKit.getRepository(Post);
 
     // Create a post
     console.log("Creating a post...");
@@ -214,7 +214,10 @@ async function testCustomNamedSubcollection() {
 
     // Get reactions repository for this post
     console.log("\nGetting reactions repository for the post...");
-    const reactionsRepo = Firekit.getSubcollectionRepository(Reaction, post.id);
+    const reactionsRepo = TorchKit.getSubcollectionRepository(
+      Reaction,
+      post.id
+    );
 
     // Create reactions
     console.log("\nCreating reactions...");
@@ -276,7 +279,7 @@ async function testMultipleSubcollections() {
     console.log("\n=== Testing Multiple Subcollections ===\n");
 
     // Get post repository
-    const postRepo = Firekit.getRepository(Post);
+    const postRepo = TorchKit.getRepository(Post);
 
     // Create a post
     console.log("Creating a post...");
@@ -291,8 +294,11 @@ async function testMultipleSubcollections() {
     console.log(`Post created with ID: ${post.id}`);
 
     // Get repositories for both subcollections
-    const commentsRepo = Firekit.getSubcollectionRepository(Comment, post.id);
-    const reactionsRepo = Firekit.getSubcollectionRepository(Reaction, post.id);
+    const commentsRepo = TorchKit.getSubcollectionRepository(Comment, post.id);
+    const reactionsRepo = TorchKit.getSubcollectionRepository(
+      Reaction,
+      post.id
+    );
 
     // Create a comment
     console.log("\nCreating a comment...");

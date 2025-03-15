@@ -4,9 +4,9 @@ import {
   Collection,
   CreatedAt,
   Field,
-  Firekit,
   ID,
   Subcollection,
+  TorchKit,
   UpdatedAt,
 } from "../src";
 
@@ -73,7 +73,7 @@ class Comment {
 async function runExample() {
   try {
     // Get post repository
-    const postRepo = Firekit.getRepository(Post);
+    const postRepo = TorchKit.getRepository(Post);
 
     // Create a post
     console.log("Creating a post...");
@@ -88,7 +88,7 @@ async function runExample() {
     console.log(`Post created with ID: ${post.id}`);
 
     // Get comments repository for this post
-    const commentsRepo = Firekit.getSubcollectionRepository(Comment, post.id);
+    const commentsRepo = TorchKit.getSubcollectionRepository(Comment, post.id);
 
     // Add comments to the post
     console.log("\nAdding comments to the post...");

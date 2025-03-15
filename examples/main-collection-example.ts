@@ -1,5 +1,5 @@
 import "reflect-metadata";
-import { Collection, CreatedAt, Field, Firekit, ID, UpdatedAt } from "../src";
+import { Collection, CreatedAt, Field, ID, TorchKit, UpdatedAt } from "../src";
 import { initializeFirebase } from "../src/firebase-init";
 
 // Initialize Firebase Admin SDK
@@ -44,7 +44,7 @@ class User {
 async function runExample() {
   try {
     // Get user repository
-    const userRepo = Firekit.getRepository(User);
+    const userRepo = TorchKit.getRepository(User);
 
     // Create users
     console.log("Creating users...");

@@ -4,8 +4,8 @@ import {
   Collection,
   CreatedAt,
   Field,
-  Firekit,
   ID,
+  TorchKit,
   UpdatedAt,
 } from "../../src";
 import { initializeFirebase } from "../../src/firebase-init";
@@ -48,12 +48,12 @@ class TestUser {
 }
 
 // Get the repository
-const userRepo = Firekit.getRepository(TestUser);
+const userRepo = TorchKit.getRepository(TestUser);
 
-// Test Firekit CRUD operations
-async function testFirekitCrud() {
+// Test TorchKit CRUD operations
+async function testTorchKitCrud() {
   try {
-    console.log("\n=== Testing Firekit CRUD Operations ===\n");
+    console.log("\n=== Testing TorchKit CRUD Operations ===\n");
 
     // Create a user
     console.log("Creating a test user...");
@@ -130,9 +130,9 @@ async function testFirekitCrud() {
       throw new Error("User was not deleted successfully");
     }
 
-    console.log("\n✅ Firekit CRUD test completed successfully!");
+    console.log("\n✅ TorchKit CRUD test completed successfully!");
   } catch (error) {
-    console.error("\n❌ Error during Firekit CRUD test:", error);
+    console.error("\n❌ Error during TorchKit CRUD test:", error);
     throw error;
   }
 }
@@ -140,9 +140,9 @@ async function testFirekitCrud() {
 // Run all tests
 async function runAllTests() {
   try {
-    await testFirekitCrud();
+    await testTorchKitCrud();
 
-    console.log("\n🎉 All Firekit tests completed successfully!");
+    console.log("\n🎉 All TorchKit tests completed successfully!");
   } catch (error) {
     console.error("\n❌ Some tests failed:", error);
     process.exit(1);
