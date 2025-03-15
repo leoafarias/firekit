@@ -1,14 +1,24 @@
-import { 
-  CollectionReference, 
-  Query as FirestoreQuery,
+import {
+  CollectionReference,
   DocumentSnapshot,
-  WhereFilterOp
-} from 'firebase-admin/firestore';
+  Query as FirestoreQuery,
+  WhereFilterOp,
+} from "firebase-admin/firestore";
 
 /**
  * Type for the supported Firestore where operators
  */
-export type FirestoreOperator = '<' | '<=' | '==' | '!=' | '>=' | '>' | 'array-contains' | 'array-contains-any' | 'in' | 'not-in';
+export type FirestoreOperator =
+  | "<"
+  | "<="
+  | "=="
+  | "!="
+  | ">="
+  | ">"
+  | "array-contains"
+  | "array-contains-any"
+  | "in"
+  | "not-in";
 
 /**
  * Builder for type-safe Firestore queries
@@ -37,7 +47,7 @@ export class QueryBuilder<T> {
    * @param operator - Comparison operator
    * @param value - Value to compare against
    * @returns Updated query builder for chaining
-   * 
+   *
    * @example
    * ```typescript
    * const users = await userRepo
@@ -48,11 +58,15 @@ export class QueryBuilder<T> {
    * ```
    */
   where<K extends keyof T>(
-    field: K, 
-    operator: FirestoreOperator, 
+    field: K,
+    operator: FirestoreOperator,
     value: any
   ): QueryBuilder<T> {
-    this.query = this.query.where(field.toString(), operator as WhereFilterOp, value);
+    this.query = this.query.where(
+      field.toString(),
+      operator as WhereFilterOp,
+      value
+    );
     return this;
   }
 
@@ -60,7 +74,7 @@ export class QueryBuilder<T> {
    * Set the query limit
    * @param limit - Maximum number of documents to return
    * @returns Updated query builder for chaining
-   * 
+   *
    * @example
    * ```typescript
    * const users = await userRepo
@@ -78,7 +92,7 @@ export class QueryBuilder<T> {
    * Set the query offset
    * @param offset - Number of documents to skip
    * @returns Updated query builder for chaining
-   * 
+   *
    * @example
    * ```typescript
    * // Get the second page of results
@@ -99,7 +113,7 @@ export class QueryBuilder<T> {
    * @param field - Field to order by
    * @param direction - Sort direction (asc or desc)
    * @returns Updated query builder for chaining
-   * 
+   *
    * @example
    * ```typescript
    * const users = await userRepo
@@ -109,7 +123,10 @@ export class QueryBuilder<T> {
    *   .get();
    * ```
    */
-  orderBy<K extends keyof T>(field: K, direction: 'asc' | 'desc' = 'asc'): QueryBuilder<T> {
+  orderBy<K extends keyof T>(
+    field: K,
+    direction: "asc" | "desc" = "asc"
+  ): QueryBuilder<T> {
     this.query = this.query.orderBy(field.toString(), direction);
     return this;
   }
@@ -118,7 +135,7 @@ export class QueryBuilder<T> {
    * Start query results at a specific document
    * @param documentId - Document ID to start at
    * @returns Updated query builder for chaining
-   * 
+   *
    * @example
    * ```typescript
    * const users = await userRepo
@@ -166,7 +183,7 @@ export class QueryBuilder<T> {
   /**
    * Execute the query
    * @returns Promise that resolves to an array of entities
-   * 
+   *
    * @example
    * ```typescript
    * const users = await userRepo
@@ -179,13 +196,13 @@ export class QueryBuilder<T> {
    */
   async get(): Promise<T[]> {
     const snapshot = await this.query.get();
-    return snapshot.docs.map(doc => this.fromFirestore(doc));
+    return snapshot.docs.map((doc) => this.fromFirestore(doc));
   }
 
   /**
    * Get the first matching document
    * @returns Promise that resolves to the first entity or null if not found
-   * 
+   *
    * @example
    * ```typescript
    * const user = await userRepo
@@ -202,7 +219,7 @@ export class QueryBuilder<T> {
   /**
    * Count the number of documents that would be returned by the query
    * @returns Promise that resolves to the count
-   * 
+   *
    * @example
    * ```typescript
    * const count = await userRepo

@@ -596,3 +596,67 @@ Note: The `serviceAccountKey.json` file contains sensitive information and shoul
 ## Usage
 
 // Add usage instructions here
+
+## Firebase Realtime Database
+
+Firekit supports Firebase Realtime Database operations through the `RealtimeRepository` class. This repository provides CRUD operations, advanced query capabilities, and real-time updates for interacting with your Firebase RTDB.
+
+### Features
+
+- **Initialization**: Configure Firebase Admin SDK using your service account and database URL.
+- **CRUD Operations**: Easily create, read, update, and delete entries with methods like `push()`, `set()`, `get()`, `update()`, and `remove()`.
+- **Querying**: Build complex queries with `orderByChild()`, `equalTo()`, `startAt()`, `limitToLast()`, and `between()` methods.
+- **Real-time Updates**: Listen for live updates with the `onValue()` listener.
+
+### Usage Example
+
+```typescript
+import { RealtimeRepository } from "firekit";
+
+interface ChatMessage {
+  text: string;
+  sender: string;
+  timestamp: number;
+  isRead?: boolean;
+}
+
+const chatRepo = new RealtimeRepository<ChatMessage>("chats");
+
+// Create a new chat message
+const newMessage = await chatRepo.push({
+  text: "Hello, world!",
+  sender: "user-123",
+  timestamp: Date.now(),
+});
+
+// Listen for real-time updates
+const unsubscribe = chatRepo
+  .query()
+  .orderByChild("timestamp")
+  .onValue((messages) => {
+    console.log("Real-time messages:", messages);
+  });
+
+// Delete the message and clean up
+await chatRepo.remove(newMessage.id);
+unsubscribe();
+```
+
+### Setup
+
+Ensure that your Firebase project has the Realtime Database enabled. Configure your Firebase Admin SDK with the correct `databaseURL`:
+
+```typescript
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+  databaseURL: `https://${
+    (serviceAccount as any).project_id
+  }-default-rtdb.firebaseio.com`,
+});
+```
+
+This configuration is essential for the Realtime Database to function correctly.
+
+---
+
+_This section is automatically maintained by Firekit documentation._

@@ -3,12 +3,12 @@
  */
 
 // Metadata keys
-export const COLLECTION_KEY = 'firekit:collection';
-export const FIELDS_KEY = 'firekit:fields';
-export const ID_FIELD_KEY = 'firekit:idField';
-export const CREATED_AT_KEY = 'firekit:createdAt';
-export const UPDATED_AT_KEY = 'firekit:updatedAt';
-export const SUBCOLLECTION_KEY = 'firekit:subcollection';
+export const COLLECTION_KEY = "firekit:collection";
+export const FIELDS_KEY = "firekit:fields";
+export const ID_FIELD_KEY = "firekit:idField";
+export const CREATED_AT_KEY = "firekit:createdAt";
+export const UPDATED_AT_KEY = "firekit:updatedAt";
+export const SUBCOLLECTION_KEY = "firekit:subcollection";
 
 // Field metadata interface
 export interface FieldMetadata {
@@ -34,12 +34,12 @@ export interface SubcollectionMetadata {
    * Parent entity class
    */
   parentEntity: any;
-  
+
   /**
    * Collection name for the subcollection
    */
   collectionName: string;
-  
+
   /**
    * Collection name of the parent entity
    */
