@@ -1,0 +1,67 @@
+# Node modules
+node_modules/
+
+# Build output directories
+dist/
+build/
+lib/
+
+# TypeScript cache and build info
+*.tsbuildinfo
+
+# Log files
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Optional npm cache directory
+.npm/
+
+# Yarn Integrity file
+.yarn-integrity
+
+# Optional REPL history
+.node_repl_history
+
+# Environment variable files
+.env
+.env.local
+.env.*.local
+
+# Editor directories and files
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Firebase configuration files
+config/serviceAccountKey.json
+config/firebase-config.json
+config/firebase-web-config.json
+*serviceAccountKey*.json
+*firebase-adminsdk*.json
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Coverage directory
+coverage/
+
+# Personal configuration files
+*.config.local.js
+*.config.local.ts
+*.local.json
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
