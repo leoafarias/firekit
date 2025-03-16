@@ -1,11 +1,11 @@
 import "reflect-metadata";
 import {
+  BurnKit,
   Collection,
   CreatedAt,
   Field,
   ID,
   NestedEntityRepository,
-  TorchKit,
   UpdatedAt,
 } from "../src";
 import { initializeFirebase } from "../src/firebase-init";
@@ -101,8 +101,8 @@ class Post {
 async function runExample() {
   try {
     // Get user repository
-    const userRepo = TorchKit.getRepository(User);
-    const postRepo = TorchKit.getRepository(Post);
+    const userRepo = BurnKit.getRepository(User);
+    const postRepo = BurnKit.getRepository(Post);
 
     // Create a nested entity repository for users and their profiles
     const userProfileRepo = new NestedEntityRepository<User, UserProfile>(

@@ -1,5 +1,5 @@
 {
-  "name": "torchkit",
+  "name": "burnkit",
   "version": "0.1.0",
   "description": "A decorator-based TypeScript SDK for Firebase",
   "main": "dist/index.js",
@@ -20,7 +20,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/leoafarias/torchkit.git"
+    "url": "git+https://github.com/leoafarias/burnkit.git"
   },
   "keywords": [
     "firebase",
@@ -32,9 +32,9 @@
   "author": "Leo Farias",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/leoafarias/torchkit/issues"
+    "url": "https://github.com/leoafarias/burnkit/issues"
   },
-  "homepage": "https://github.com/leoafarias/torchkit#readme",
+  "homepage": "https://github.com/leoafarias/burnkit#readme",
   "dependencies": {
     "reflect-metadata": "^0.1.13"
   },

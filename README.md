@@ -1,6 +1,6 @@
-# TorchKit
+# BurnKit
 
-[![npm version](https://badge.fury.io/js/torchkit.svg)](https://badge.fury.io/js/torchkit)
+[![npm version](https://badge.fury.io/js/burnkit.svg)](https://badge.fury.io/js/burnkit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A decorator-based TypeScript SDK for Firebase that provides a clean, type-safe API for working with Firestore and Realtime Database.
@@ -20,12 +20,12 @@ A decorator-based TypeScript SDK for Firebase that provides a clean, type-safe A
 ## Installation
 
 ```bash
-npm install torchkit firebase-admin reflect-metadata
+npm install burnkit firebase-admin reflect-metadata
 # or
-yarn add torchkit firebase-admin reflect-metadata
+yarn add burnkit firebase-admin reflect-metadata
 ```
 
-> **Note**: TorchKit requires `reflect-metadata` for decorators to work properly. Make sure to import it once in your application's entry point.
+> **Note**: BurnKit requires `reflect-metadata` for decorators to work properly. Make sure to import it once in your application's entry point.
 
 ## Quick Start
 
@@ -51,7 +51,7 @@ import {
   CreatedAt,
   UpdatedAt,
   Subcollection,
-} from "torchkit";
+} from "burnkit";
 
 @Collection("users")
 class User {
@@ -139,10 +139,10 @@ class CustomComment {
 ### Use the Repository
 
 ```typescript
-import { TorchKit } from "torchkit";
+import { BurnKit } from "burnkit";
 
 // Get a repository for the User entity
-const userRepo = TorchKit.getRepository(User);
+const userRepo = BurnKit.getRepository(User);
 
 // Create a new user
 async function createUser() {
@@ -200,20 +200,20 @@ async function deleteUser(id: string) {
 ### Working with Subcollections
 
 ```typescript
-import { TorchKit } from "torchkit";
+import { BurnKit } from "burnkit";
 
 // First, get a regular repository for posts
-const postRepo = TorchKit.getRepository(Post);
+const postRepo = BurnKit.getRepository(Post);
 
 // Create a post
 const post = await postRepo.create({
-  title: "Getting Started with TorchKit",
-  content: "TorchKit is an amazing TypeScript SDK for Firebase...",
+  title: "Getting Started with BurnKit",
+  content: "BurnKit is an amazing TypeScript SDK for Firebase...",
   authorId: "user123",
 });
 
 // Get a repository for the comments subcollection of a specific post
-const commentsRepo = TorchKit.getSubcollectionRepository(Comment, post.id);
+const commentsRepo = BurnKit.getSubcollectionRepository(Comment, post.id);
 
 // Add a comment to the post
 const comment = await commentsRepo.create({
@@ -242,7 +242,7 @@ if (postWithComments) {
 ### Working with Nested Entities
 
 ```typescript
-import { NestedEntityRepository, TorchKit } from "torchkit";
+import { NestedEntityRepository, BurnKit } from "burnkit";
 
 // Create a nested entity repository for users and their profiles
 const userProfileRepo = new NestedEntityRepository(
@@ -290,7 +290,7 @@ async function loadUserWithProfile(userId: string) {
 ### Using the Realtime Database
 
 ```typescript
-import { RealtimeRepository } from "torchkit";
+import { RealtimeRepository } from "burnkit";
 
 // Create a repository for the realtime database
 const chatRepo = new RealtimeRepository<{
@@ -392,14 +392,14 @@ Marks a property to be automatically updated with the update timestamp.
 updatedAt: Date;
 ```
 
-### TorchKit
+### BurnKit
 
 #### `getRepository<T>(entityClass: new () => T): EntityRepository<T>`
 
 Gets a repository for an entity class.
 
 ```typescript
-const userRepo = TorchKit.getRepository(User);
+const userRepo = BurnKit.getRepository(User);
 ```
 
 #### `getSubcollectionRepository<T>(entityClass: new () => T, parentId: string): EntityRepository<T>`
@@ -407,7 +407,7 @@ const userRepo = TorchKit.getRepository(User);
 Gets a repository for a subcollection of a specific parent document.
 
 ```typescript
-const commentsRepo = TorchKit.getSubcollectionRepository(Comment, postId);
+const commentsRepo = BurnKit.getSubcollectionRepository(Comment, postId);
 ```
 
 #### `clearCache(): void`
@@ -415,7 +415,7 @@ const commentsRepo = TorchKit.getSubcollectionRepository(Comment, postId);
 Clears the repository cache.
 
 ```typescript
-TorchKit.clearCache();
+BurnKit.clearCache();
 ```
 
 ### EntityRepository
@@ -561,7 +561,7 @@ MIT
 
 ## Firebase Setup
 
-To use TorchKit with your Firebase project, you need to set up Firebase credentials:
+To use BurnKit with your Firebase project, you need to set up Firebase credentials:
 
 1. Create a Firebase project in the [Firebase Console](https://console.firebase.google.com/)
 
@@ -599,7 +599,7 @@ Note: The `serviceAccountKey.json` file contains sensitive information and shoul
 
 ## Firebase Realtime Database
 
-TorchKit supports Firebase Realtime Database operations through the `RealtimeRepository` class. This repository provides CRUD operations, advanced query capabilities, and real-time updates for interacting with your Firebase RTDB.
+BurnKit supports Firebase Realtime Database operations through the `RealtimeRepository` class. This repository provides CRUD operations, advanced query capabilities, and real-time updates for interacting with your Firebase RTDB.
 
 ### Features
 
@@ -611,7 +611,7 @@ TorchKit supports Firebase Realtime Database operations through the `RealtimeRep
 ### Usage Example
 
 ```typescript
-import { RealtimeRepository } from "torchkit";
+import { RealtimeRepository } from "burnkit";
 
 interface ChatMessage {
   text: string;
@@ -691,4 +691,4 @@ To use the CI/CD pipeline, you need to set up the following GitHub secrets:
 
 ---
 
-_This section is automatically maintained by TorchKit documentation._
+_This section is automatically maintained by BurnKit documentation._

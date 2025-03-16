@@ -9,7 +9,7 @@ import { EntityRepository } from "../repository/entity.repository";
  * Class to manage entity repositories
  * Serves as a central access point for repositories and handles caching
  */
-class TorchKitClass {
+class BurnKitManager {
   /**
    * Map of entity classes to their repositories
    */
@@ -24,7 +24,7 @@ class TorchKitClass {
    *
    * @example
    * ```typescript
-   * const userRepo = TorchKit.getRepository(User);
+   * const userRepo = BurnKit.getRepository(User);
    * const user = await userRepo.findById('user-id');
    * ```
    */
@@ -47,7 +47,7 @@ class TorchKitClass {
    * @example
    * ```typescript
    * // Get repository for comments of a specific post
-   * const commentsRepo = TorchKit.getSubcollectionRepository(Comment, postId);
+   * const commentsRepo = BurnKit.getSubcollectionRepository(Comment, postId);
    * const comments = await commentsRepo.findAll();
    * ```
    */
@@ -94,11 +94,6 @@ class TorchKitClass {
 }
 
 /**
- * Singleton instance of the TorchKit class
+ * Singleton instance of the BurnKit class
  */
-export const TorchKit = new TorchKitClass();
-
-/**
- * @deprecated Use TorchKit instead
- */
-export const FirekitManager = TorchKit;
+export const BurnKit = new BurnKitManager();

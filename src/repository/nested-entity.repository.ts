@@ -1,6 +1,6 @@
 import { Firestore, getFirestore } from "firebase-admin/firestore";
 
-import { TorchKit } from "../manager/entity-manager";
+import { BurnKit } from "../manager/entity-manager";
 import { EntityRepository } from "./entity.repository";
 
 /**
@@ -28,8 +28,8 @@ export class NestedEntityRepository<T, R> {
     pathBuilder: (parentId: string) => string
   ) {
     this.db = getFirestore();
-    this.parentRepo = TorchKit.getRepository(parentEntity);
-    this.childRepo = TorchKit.getRepository(childEntity);
+    this.parentRepo = BurnKit.getRepository(parentEntity);
+    this.childRepo = BurnKit.getRepository(childEntity);
     this.childField = childField;
     this.pathBuilder = pathBuilder;
   }

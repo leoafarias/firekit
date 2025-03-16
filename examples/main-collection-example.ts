@@ -1,5 +1,5 @@
 import "reflect-metadata";
-import { Collection, CreatedAt, Field, ID, TorchKit, UpdatedAt } from "../src";
+import { BurnKit, Collection, CreatedAt, Field, ID, UpdatedAt } from "../src";
 import { initializeFirebase } from "../src/firebase-init";
 
 // Initialize Firebase Admin SDK
@@ -44,7 +44,7 @@ class User {
 async function runExample() {
   try {
     // Get user repository
-    const userRepo = TorchKit.getRepository(User);
+    const userRepo = BurnKit.getRepository(User);
 
     // Create users
     console.log("Creating users...");
@@ -89,21 +89,6 @@ async function runExample() {
     console.log(
       "Please create the index using the URL from the error message and try again later."
     );
-
-    /*
-    console.log("\nQuerying users over 25 years old...");
-    const olderUsers = await userRepo
-      .query()
-      .where("age", ">", 25)
-      .orderBy("age")
-      .orderBy("displayName")
-      .get();
-    
-    console.log(`Found ${olderUsers.length} users over 25 years old:`);
-    olderUsers.forEach(user => {
-      console.log(`- ${user.displayName} (${user.age})`);
-    });
-    */
 
     // Update a user
     console.log("\nUpdating a user...");
