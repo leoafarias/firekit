@@ -1,28 +1,50 @@
 import * as admin from "firebase-admin";
-import path from "path";
 
-// Initialize Firebase Admin SDK if not already initialized
-export function initializeFirebase(): admin.app.App {
+let firebaseApp: admin.app.App | undefined;
+
+/**
+ * Initialize Firebase Admin SDK
+ * @param serviceAccountPath Optional path to service account JSON file
+ * @returns The Firebase Admin app instance
+ */
+export function initializeFirebase(
+  serviceAccountPathOrObject: string | admin.ServiceAccount
+): admin.app.App {
+  // Don't re-initialize if already done
+  if (firebaseApp) {
+    return firebaseApp;
+  }
+
   try {
-    return admin.app();
-  } catch (error) {
-    // App doesn't exist yet, initialize it
-    const serviceAccountPath = path.resolve(
-      __dirname,
-      "../config/serviceAccountKey.json"
-    );
+    // If a service account path is provided, use it
 
-    return admin.initializeApp({
-      credential: admin.credential.cert(require(serviceAccountPath)),
+    let adminServiceAccount: admin.ServiceAccount;
+
+    // checkif serviceaccount is path if so load it
+    if (typeof serviceAccountPathOrObject === "string") {
+      const serviceAccount = require(serviceAccountPathOrObject);
+      adminServiceAccount = serviceAccount;
+    } else {
+      adminServiceAccount = serviceAccountPathOrObject;
+    }
+
+    firebaseApp = admin.initializeApp({
+      credential: admin.credential.cert(adminServiceAccount),
+      databaseURL: `https://${adminServiceAccount.projectId}-default-rtdb.firebaseio.com`,
     });
+
+    return firebaseApp;
+  } catch (error) {
+    console.error("Failed to initialize Firebase:", error);
+    throw error;
   }
 }
 
-// Get Firestore instance
-export function getFirestore(): admin.firestore.Firestore {
-  const app = initializeFirebase();
-  return app.firestore();
+export function getFirestore() {
+  if (!firebaseApp) {
+    throw new Error(
+      "Firebase Admin SDK not initialized, call initializeFirebase first"
+    );
+  }
+  return admin.firestore(firebaseApp);
 }
-
-// Export Firebase Admin SDK
-export { admin };

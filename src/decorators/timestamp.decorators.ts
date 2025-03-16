@@ -1,3 +1,5 @@
+import { Type } from "class-transformer";
+import { IsDate } from "class-validator";
 import "reflect-metadata";
 import { CREATED_AT_KEY, UPDATED_AT_KEY } from "../utils/metadata.utils";
 
@@ -22,7 +24,14 @@ export function CreatedAt(): PropertyDecorator {
         ? target
         : (target && target.constructor) || target;
 
+    // Apply the original CreatedAt functionality
     Reflect.defineMetadata(CREATED_AT_KEY, propertyKey, constructor);
+
+    // Apply class-validator decorator
+    IsDate()(target, propertyKey);
+
+    // Apply class-transformer decorators
+    Type(() => Date)(target, propertyKey);
   };
 }
 
@@ -47,7 +56,14 @@ export function UpdatedAt(): PropertyDecorator {
         ? target
         : (target && target.constructor) || target;
 
+    // Apply the original UpdatedAt functionality
     Reflect.defineMetadata(UPDATED_AT_KEY, propertyKey, constructor);
+
+    // Apply class-validator decorator
+    IsDate()(target, propertyKey);
+
+    // Apply class-transformer decorators
+    Type(() => Date)(target, propertyKey);
   };
 }
 

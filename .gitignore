@@ -43,10 +43,7 @@ yarn-error.log*
 Thumbs.db
 
 # Firebase configuration files
-config/serviceAccountKey.json
-config/firebase-config.json
-config/firebase-web-config.json
-*serviceAccountKey*.json
+serviceAccountKey.json
 *firebase-adminsdk*.json
 .firebase/
 firebase-debug.log

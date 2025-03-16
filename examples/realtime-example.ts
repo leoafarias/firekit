@@ -1,16 +1,10 @@
-import * as admin from "firebase-admin";
 import "reflect-metadata";
-import * as serviceAccount from "../config/serviceAccountKey.json";
+
 import { RealtimeRepository } from "../src";
+import { initializeFirebase } from "../src/firebase-init";
 
 // Initialize Firebase Admin SDK with database URL
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-  databaseURL: `https://${
-    (serviceAccount as any).project_id
-  }-default-rtdb.firebafseio.com`,
-});
-
+initializeFirebase(require("../serviceAccountKey.json"));
 console.log("Firebase Admin SDK initialized successfully");
 
 // Define interface for a ChatMessage

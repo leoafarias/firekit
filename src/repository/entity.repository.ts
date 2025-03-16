@@ -1,21 +1,24 @@
+import { plainToInstance } from "class-transformer";
+import {
+  ClassType,
+  transformAndValidateSync,
+} from "class-transformer-validator";
+import { ValidatorOptions } from "class-validator";
 import {
   CollectionReference,
   DocumentReference,
   DocumentSnapshot,
-  FieldValue,
   Firestore,
   getFirestore,
-  Timestamp,
   WriteBatch,
 } from "firebase-admin/firestore";
-
+import { getCollectionName } from "../decorators";
 import {
-  getCollectionName,
-  getCreatedAtField,
-  getIdField,
-  getUpdatedAtField,
-} from "../decorators";
-
+  Entity,
+  FieldsOnly,
+  PartialFields,
+  validateEntity,
+} from "../models/entity.model";
 import { FieldMetadata, FIELDS_KEY } from "../utils/metadata.utils";
 import { FirestoreBatchHelper } from "./batch-helper";
 import { QueryBuilder } from "./query-builder";
@@ -24,14 +27,11 @@ import { QueryBuilder } from "./query-builder";
  * Repository for Firestore entities
  * Provides CRUD operations and query capabilities
  */
-export class EntityRepository<T> {
+export class EntityRepository<T extends object> {
   private db: Firestore;
   private collectionRef: CollectionReference;
-  private entityClass: new () => T;
+  private entityClass: ClassType<T>;
   private collectionName: string;
-  private idField: string | symbol | undefined;
-  private createdAtField: string | symbol | undefined;
-  private updatedAtField: string | symbol | undefined;
   private fields: FieldMetadata[];
 
   /**
@@ -40,10 +40,23 @@ export class EntityRepository<T> {
    * @param collectionRef - Optional custom collection reference (used for subcollections)
    * @throws Error if the entity class is not properly decorated
    */
-  constructor(entityClass: new () => T, collectionRef?: CollectionReference) {
+  constructor(entityClass: ClassType<T>, collectionRef?: CollectionReference) {
     this.entityClass = entityClass;
     this.db = getFirestore();
+    // Check if Firebase is properly initialized
+    if (!this.db) {
+      throw new Error(
+        "Firebase is not properly initialized. Make sure to call initializeFirebase() before creating repositories."
+      );
+    }
 
+    // Get collection metadata
+    this.collectionName = getCollectionName(entityClass) || "";
+    if (!this.collectionName && !collectionRef) {
+      throw new Error(
+        `Class ${entityClass.name} is not decorated with @Collection or @Subcollection`
+      );
+    }
     // Get collection metadata
     this.collectionName = getCollectionName(entityClass) || "";
     if (!this.collectionName && !collectionRef) {
@@ -54,37 +67,10 @@ export class EntityRepository<T> {
 
     // Get field metadata
     this.fields = Reflect.getMetadata(FIELDS_KEY, entityClass) || [];
-    this.idField = getIdField(entityClass);
-    this.createdAtField = getCreatedAtField(entityClass);
-    this.updatedAtField = getUpdatedAtField(entityClass);
 
     // Get Firestore collection reference (use provided one or create from collection name)
     this.collectionRef =
       collectionRef || this.db.collection(this.collectionName);
-  }
-
-  /**
-   * Gets the ID field property key
-   * @returns ID field property key
-   */
-  getIdField(): string | symbol | undefined {
-    return this.idField;
-  }
-
-  /**
-   * Gets the createdAt field property key
-   * @returns createdAt field property key
-   */
-  getCreatedAtField(): string | symbol | undefined {
-    return this.createdAtField;
-  }
-
-  /**
-   * Gets the updatedAt field property key
-   * @returns updatedAt field property key
-   */
-  getUpdatedAtField(): string | symbol | undefined {
-    return this.updatedAtField;
   }
 
   /**
@@ -100,14 +86,14 @@ export class EntityRepository<T> {
    * @param entity - Entity or partial entity data
    * @returns Firestore data object
    */
-  toFirestore(entity: Partial<T>): Record<string, any> {
+  toFirestore(entity: PartialFields<T>): Record<string, any> {
     const data: Record<string, any> = {};
 
     // Add fields
     this.fields.forEach((field) => {
       const propKey = field.propertyKey.toString();
       if (propKey in entity) {
-        let value = entity[propKey as keyof T];
+        let value = entity[propKey as keyof FieldsOnly<T>];
 
         // Apply custom transformers
         if (
@@ -126,44 +112,49 @@ export class EntityRepository<T> {
   }
 
   /**
+   * Create a subcollection repository for a parent entity
+   * @param parentId - ID of the parent entity
+   * @param childEntityClass - Class of the child entity
+   * @param subcollectionName - Name of the subcollection
+   * @returns A new repository for the child entity
+   *
+   * @example
+   * ```typescript
+   * const userRepo = BurnKit.getRepository(User);
+   * const postRepo = userRepo.subcollection("user-id", Post, "posts");
+   * ```
+   */
+  protected subcollection<R extends object>(
+    parentId: string,
+    childEntityClass: ClassType<R>,
+    subcollectionName: string
+  ): EntityRepository<R> {
+    // Create a reference to the subcollection
+    const subcollectionRef = this.collectionRef
+      .doc(parentId)
+      .collection(subcollectionName);
+
+    // Create and return a new repository for the child entity
+    return new EntityRepository<R>(childEntityClass, subcollectionRef);
+  }
+
+  /**
    * Convert Firestore document to entity
    * @param snapshot - Firestore document snapshot
    * @returns Entity instance
    */
-  fromFirestore(snapshot: DocumentSnapshot): T {
+  fromFirestore(snapshot: DocumentSnapshot): Entity<T> {
     const data = snapshot.data() || {};
-    const entity = new this.entityClass();
 
-    // Set ID
-    if (this.idField) {
-      entity[this.idField.toString() as keyof T] = snapshot.id as any;
-    }
+    // Create a FirestoreDoc wrapper around the data
+    const entityData = plainToInstance(this.entityClass, data);
 
-    // Set fields
-    this.fields.forEach((field) => {
-      const propKey = field.propertyKey.toString();
-      if (propKey in data) {
-        let value = data[propKey];
-
-        // Convert Firestore Timestamp to Date
-        if (value instanceof Timestamp) {
-          value = value.toDate();
-        }
-
-        // Apply custom transformers
-        if (
-          field.options.transformer &&
-          field.options.transformer.fromFirestore
-        ) {
-          value = field.options.transformer.fromFirestore(value);
-        }
-
-        // Set property
-        entity[propKey as keyof T] = value as any;
-      }
-    });
-
-    return entity;
+    return {
+      id: snapshot.id,
+      createdAt: snapshot.createTime!.toDate(),
+      updatedAt: snapshot.updateTime!.toDate(),
+      ...entityData,
+    };
   }
 
   /**
@@ -181,19 +172,12 @@ export class EntityRepository<T> {
    * });
    * ```
    */
-  async create(data: Partial<T>, id?: string): Promise<T> {
+  async create(data: FieldsOnly<T>, id?: string): Promise<Entity<T>> {
     // Convert entity to Firestore data
-    const firestoreData = this.toFirestore(data);
+    const validatedData = transformAndSanitizeEntity(this.entityClass, data);
+    const firestoreData = this.toFirestore(validatedData);
 
-    // Add timestamps
-    if (this.createdAtField) {
-      firestoreData[this.createdAtField.toString()] =
-        FieldValue.serverTimestamp();
-    }
-    if (this.updatedAtField) {
-      firestoreData[this.updatedAtField.toString()] =
-        FieldValue.serverTimestamp();
-    }
+    // validate the data
 
     // Create document with auto-generated ID or custom ID if provided
     let docRef: DocumentReference;
@@ -222,7 +206,7 @@ export class EntityRepository<T> {
    * }
    * ```
    */
-  async findById(id: string): Promise<T | null> {
+  async findById(id: string): Promise<Entity<T> | null> {
     const snapshot = await this.collectionRef.doc(id).get();
     if (!snapshot.exists) {
       return null;
@@ -246,7 +230,7 @@ export class EntityRepository<T> {
    * }
    * ```
    */
-  async getById(id: string): Promise<T> {
+  async getById(id: string): Promise<Entity<T>> {
     const entity = await this.findById(id);
     if (!entity) {
       throw new Error(
@@ -271,19 +255,20 @@ export class EntityRepository<T> {
    * console.log(updatedUser.name); // 'John Smith'
    * ```
    */
-  async update(id: string, data: Partial<T>): Promise<T> {
+  async update(id: string, data: PartialFields<T>): Promise<Entity<T>> {
     // Convert entity to Firestore data
-    const firestoreData = this.toFirestore(data);
-
-    // Add updated timestamp
-    if (this.updatedAtField) {
-      firestoreData[this.updatedAtField.toString()] =
-        FieldValue.serverTimestamp();
-    }
+    const validatedData = await validateEntity<PartialFields<T>>(
+      this.entityClass,
+      data,
+      {
+        skipMissingProperties: true,
+      }
+    );
+    const firestoreData = this.toFirestore(validatedData);
 
     // Update document
     const docRef = this.collectionRef.doc(id);
-    await docRef.update(firestoreData);
+    await docRef.set(firestoreData, { merge: true });
 
     // Get the updated document
     const snapshot = await docRef.get();
@@ -314,7 +299,7 @@ export class EntityRepository<T> {
    * console.log(`Found ${allUsers.length} users`);
    * ```
    */
-  async findAll(): Promise<T[]> {
+  async findAll(): Promise<Entity<T>[]> {
     const snapshot = await this.collectionRef.get();
     return snapshot.docs.map((doc) => this.fromFirestore(doc));
   }
@@ -332,8 +317,8 @@ export class EntityRepository<T> {
    *   .get();
    * ```
    */
-  query(): QueryBuilder<T> {
-    return new QueryBuilder<T>(
+  query(): QueryBuilder<Entity<T>> {
+    return new QueryBuilder<Entity<T>>(
       this.collectionRef,
       this.fromFirestore.bind(this)
     );
@@ -370,5 +355,27 @@ export class EntityRepository<T> {
    */
   getBatch(): WriteBatch {
     return this.db.batch();
+  }
+}
+
+export function transformAndSanitizeEntity<T extends object>(
+  classType: ClassType<T>,
+  obj: object,
+  validatorOptions: ValidatorOptions = {
+    skipMissingProperties: true,
+    forbidUnknownValues: false,
+  }
+) {
+  try {
+    return transformAndValidateSync<T>(classType, obj, {
+      validator: validatorOptions,
+      transformer: {
+        excludeExtraneousValues: false,
+        exposeUnsetFields: false,
+      },
+    });
+  } catch (error) {
+    console.error("Validation error:", error);
+    throw error;
   }
 }

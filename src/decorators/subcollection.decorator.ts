@@ -1,3 +1,4 @@
+import { ClassType } from "class-transformer-validator";
 import "reflect-metadata";
 import {
   SubcollectionMetadata,
@@ -22,8 +23,8 @@ import { getCollectionName } from "./collection.decorator";
  * class Comment { }
  * ```
  */
-export function Subcollection(
-  parentEntity: any,
+export function Subcollection<T extends object>(
+  parentEntity: ClassType<T>,
   collectionName?: string
 ): ClassDecorator {
   return function decorateSubcollection(target: any) {

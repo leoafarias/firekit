@@ -43,9 +43,9 @@ jobs:
 
       - name: Run TypeScript Firebase tests
         run: |
-          npx ts-node tests/firebase/test-torchkit-core.ts
-          npx ts-node tests/firebase/test-torchkit-subcollections.ts
-          npx ts-node tests/firebase/test-torchkit-realtime.ts
+          npx ts-node tests/firebase/test-burnkit-core.ts
+          npx ts-node tests/firebase/test-burnkit-subcollections.ts
+          npx ts-node tests/firebase/test-burnkit-realtime.ts
 
   publish:
     name: Publish to NPM

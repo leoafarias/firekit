@@ -1,16 +1,13 @@
 import "reflect-metadata";
-import { BurnKit, Collection, CreatedAt, Field, ID, UpdatedAt } from "../src";
+import { BurnKit, Collection, Field } from "../src";
 import { initializeFirebase } from "../src/firebase-init";
 
 // Initialize Firebase Admin SDK
-initializeFirebase();
+initializeFirebase(require("../serviceAccountKey.json"));
 
 // Define a main entity
 @Collection("users")
 class User {
-  @ID()
-  id!: string;
-
   @Field()
   displayName!: string;
 
@@ -28,14 +25,8 @@ class User {
   })
   roles!: string[];
 
-  @CreatedAt()
-  createdAt!: Date;
-
-  @UpdatedAt()
-  updatedAt!: Date;
-
   // Non-persisted computed property
-  get isAdmin(): boolean {
+  isAdmin(): boolean {
     return this.roles.includes("admin");
   }
 }

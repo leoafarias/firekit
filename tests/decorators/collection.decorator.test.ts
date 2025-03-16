@@ -5,6 +5,8 @@ import {
 } from "../../src/decorators/collection.decorator";
 import { COLLECTION_KEY } from "../../src/utils/metadata.utils";
 
+// setupRealFirebase();
+
 describe("Collection Decorator", () => {
   // Define test class
   @Collection("users")

@@ -1,3 +1,4 @@
+import { IsNotEmpty, IsString } from "class-validator";
 import "reflect-metadata";
 import { ID_FIELD_KEY } from "../utils/metadata.utils";
 
@@ -22,6 +23,10 @@ export function ID(): PropertyDecorator {
         : (target && target.constructor) || target;
 
     Reflect.defineMetadata(ID_FIELD_KEY, propertyKey, constructor);
+
+    // Apply class-validator decorators
+    IsString()(target, propertyKey);
+    IsNotEmpty()(target, propertyKey);
   };
 }
 

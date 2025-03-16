@@ -1,10 +1,11 @@
-import { CollectionReference, WriteBatch, FieldValue } from 'firebase-admin/firestore';
-import { EntityRepository } from './entity.repository';
+import { CollectionReference, WriteBatch } from "firebase-admin/firestore";
+import { FieldsOnly, toPartialFields } from "../models/entity.model";
+import { EntityRepository } from "./entity.repository";
 
 /**
  * Helper class for batch operations on entities
  */
-export class FirestoreBatchHelper<T> {
+export class FirestoreBatchHelper<T extends object> {
   /**
    * Creates a new batch helper
    * @param batch - Firestore write batch
@@ -23,29 +24,17 @@ export class FirestoreBatchHelper<T> {
    * @param id - Optional ID for the new document (auto-generated if not provided)
    * @returns This batch helper for chaining
    */
-  create(data: Partial<T>, id?: string): FirestoreBatchHelper<T> {
+  create(data: FieldsOnly<T>, id?: string): FirestoreBatchHelper<T> {
     // Convert entity to Firestore data
-    const firestoreData = this.repository.toFirestore(data);
-    
-    // Add timestamps
-    const createdAtField = this.repository.getCreatedAtField();
-    const updatedAtField = this.repository.getUpdatedAtField();
-    
-    if (createdAtField) {
-      firestoreData[createdAtField.toString()] = FieldValue.serverTimestamp();
-    }
-    
-    if (updatedAtField) {
-      firestoreData[updatedAtField.toString()] = FieldValue.serverTimestamp();
-    }
-    
+    const firestoreData = this.repository.toFirestore(toPartialFields(data));
+
     // Add to batch
     if (id) {
       this.batch.set(this.collectionRef.doc(id), firestoreData);
     } else {
       this.batch.set(this.collectionRef.doc(), firestoreData);
     }
-    
+
     return this;
   }
 
@@ -58,16 +47,10 @@ export class FirestoreBatchHelper<T> {
   update(id: string, data: Partial<T>): FirestoreBatchHelper<T> {
     // Convert entity to Firestore data
     const firestoreData = this.repository.toFirestore(data);
-    
-    // Add updated timestamp
-    const updatedAtField = this.repository.getUpdatedAtField();
-    if (updatedAtField) {
-      firestoreData[updatedAtField.toString()] = FieldValue.serverTimestamp();
-    }
-    
+
     // Add to batch
     this.batch.update(this.collectionRef.doc(id), firestoreData);
-    
+
     return this;
   }
 
@@ -87,5 +70,26 @@ export class FirestoreBatchHelper<T> {
    */
   async commit(): Promise<void> {
     await this.batch.commit();
+  }
+
+  /**
+   * Create a batch helper for a specific subcollection
+   * @param parentId - ID of the parent document
+   * @param subcollectionName - Name of the subcollection
+   * @param childRepo - Repository for the child entity
+   * @returns A new batch helper for the subcollection
+   */
+  forSubcollection<R extends object>(
+    parentId: string,
+    subcollectionName: string,
+    childRepo: EntityRepository<R>
+  ): FirestoreBatchHelper<R> {
+    // Get subcollection reference
+    const subcollectionRef = this.collectionRef
+      .doc(parentId)
+      .collection(subcollectionName);
+
+    // Create a new batch helper for the subcollection
+    return new FirestoreBatchHelper<R>(this.batch, subcollectionRef, childRepo);
   }
 }

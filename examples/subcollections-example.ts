@@ -1,26 +1,12 @@
-import * as admin from "firebase-admin";
 import "reflect-metadata";
-import {
-  BurnKit,
-  Collection,
-  CreatedAt,
-  Field,
-  ID,
-  Subcollection,
-  UpdatedAt,
-} from "../src";
+import { BurnKit, Collection, Field, Subcollection } from "../src";
+import { initializeFirebase } from "../src/firebase-init";
 
-// Initialize Firebase Admin SDK
-admin.initializeApp({
-  credential: admin.credential.cert(require("./serviceAccountKey.json")),
-});
+initializeFirebase(require("../serviceAccountKey.json"));
 
 // Define parent entity
 @Collection("posts")
 class Post {
-  @ID()
-  id!: string;
-
   @Field()
   title!: string;
 
@@ -35,24 +21,11 @@ class Post {
 
   @Field({ index: true })
   published!: boolean;
-
-  @CreatedAt()
-  createdAt!: Date;
-
-  @UpdatedAt()
-  updatedAt!: Date;
-
-  // This field is not stored in Firestore, but will be populated
-  // with data from the comments subcollection
-  comments?: Comment[];
 }
 
 // Define subcollection entity
 @Subcollection(Post)
 class Comment {
-  @ID()
-  id!: string;
-
   @Field()
   content!: string;
 
@@ -61,12 +34,6 @@ class Comment {
 
   @Field()
   authorName!: string;
-
-  @CreatedAt()
-  createdAt!: Date;
-
-  @UpdatedAt()
-  updatedAt!: Date;
 }
 
 // Example usage
@@ -130,16 +97,16 @@ async function runExample() {
     });
     console.log("Comment updated");
 
-    // Retrieve the post and manually add its comments
+    // Retrieve the post and manually add i ts comments
     console.log("\nRetrieving post with comments...");
     const retrievedPost = await postRepo.findById(post.id);
     if (retrievedPost) {
       // Load comments into the post object
-      retrievedPost.comments = await commentsRepo.findAll();
+      const comments = await commentsRepo.findAll();
 
       console.log(`Post: ${retrievedPost.title}`);
-      console.log(`Comments (${retrievedPost.comments.length}):`);
-      retrievedPost.comments.forEach((comment, index) => {
+      console.log(`Comments (${comments.length}):`);
+      comments.forEach((comment, index) => {
         console.log(`${index + 1}. ${comment.authorName}: ${comment.content}`);
       });
     }

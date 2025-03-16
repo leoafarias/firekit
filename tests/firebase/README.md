@@ -29,14 +29,6 @@ node tests/firebase/test-firebase-rtdb.js
 # Test direct Firebase API access
 node tests/firebase/test-firebase-direct.js
 
-# Test Firekit core functionality (JavaScript)
-node tests/firebase/test-firekit-core.js
-
-# Test Firekit core functionality (TypeScript)
-npx ts-node tests/firebase/test-firekit-core.ts
-
-# Test Firekit subcollection functionality
-npx ts-node tests/firebase/test-firekit-subcollections.ts
 ```
 
 ## Testing Firekit with Firebase

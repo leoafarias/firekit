@@ -1,10 +1,10 @@
+import { ClassType } from "class-transformer-validator";
 import { getFirestore } from "firebase-admin/firestore";
 import {
   buildSubcollectionPath,
   getSubcollectionMetadata,
 } from "../decorators/subcollection.decorator";
 import { EntityRepository } from "../repository/entity.repository";
-
 /**
  * Class to manage entity repositories
  * Serves as a central access point for repositories and handles caching
@@ -28,7 +28,9 @@ class BurnKitManager {
    * const user = await userRepo.findById('user-id');
    * ```
    */
-  getRepository<T>(entityClass: new () => T): EntityRepository<T> {
+  getRepository<T extends object>(
+    entityClass: ClassType<T>
+  ): EntityRepository<T> {
     const key = entityClass.name;
 
     if (!this.repositories.has(key)) {
@@ -51,8 +53,8 @@ class BurnKitManager {
    * const comments = await commentsRepo.findAll();
    * ```
    */
-  getSubcollectionRepository<T>(
-    entityClass: new () => T,
+  getSubcollectionRepository<T extends object>(
+    entityClass: ClassType<T>,
     parentId: string
   ): EntityRepository<T> {
     // Check if the entity class is a subcollection

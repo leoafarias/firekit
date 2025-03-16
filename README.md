@@ -3,19 +3,18 @@
 [![npm version](https://badge.fury.io/js/burnkit.svg)](https://badge.fury.io/js/burnkit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A decorator-based TypeScript SDK for Firebase that provides a clean, type-safe API for working with Firestore and Realtime Database.
+BurnKit is a powerful, decorator-based TypeScript SDK for Firebase that provides a clean, type-safe API for working with both Firestore and the Realtime Database. Designed with a forward-thinking approach, BurnKit simplifies data modeling, validation, and querying while embracing modern best practices.
 
 ## Features
 
-- **TypeScript Decorators** for simple entity and field mapping
-- **Type-Safe Queries** with strongly typed fields and values
-- **Automatic Timestamps** for created and updated fields
-- **Repository Pattern** for clean data access
-- **Batch Operations** for efficient data manipulation
-- **Custom Field Transformers** for complex data types
-- **Subcollection Support** with dedicated decorator for defining subcollections
-- **Nested Entity Support** for managing subcollections and relationships
-- **Realtime Database Support** for working with Firebase RTDB
+- **TypeScript Decorators** for intuitive entity and field mapping
+- **Type-Safe Queries** with a robust, chainable query builder
+- **Automatic Data Validation & Transformation** using class-transformer-validator
+- **Repository Pattern** for clean, maintainable data access
+- **Batch Operations** for efficient bulk updates
+- **Enhanced Subcollection Support** with dedicated decorators and metadata utilities
+- **Nested Entity Support** for managing complex relationships
+- **Realtime Database Integration** with comprehensive CRUD and query capabilities
 
 ## Installation
 
@@ -25,16 +24,15 @@ npm install burnkit firebase-admin reflect-metadata
 yarn add burnkit firebase-admin reflect-metadata
 ```
 
-> **Note**: BurnKit requires `reflect-metadata` for decorators to work properly. Make sure to import it once in your application's entry point.
+Note: BurnKit requires reflect-metadata for decorators to function properly. Ensure it is imported once in your application's entry point.
 
 ## Quick Start
 
 ### Initialize Firebase
 
 ```typescript
-// Initialize Firebase Admin SDK in your application's entry point
 import * as admin from "firebase-admin";
-import "reflect-metadata"; // Important: Import this once in your app
+import "reflect-metadata"; // Ensure this is imported once
 
 admin.initializeApp({
   credential: admin.credential.cert(require("./serviceAccountKey.json")),
@@ -42,6 +40,8 @@ admin.initializeApp({
 ```
 
 ### Define Entity Models
+
+BurnKit leverages decorators to define your Firestore and Realtime Database entities effortlessly. For example:
 
 ```typescript
 import {
@@ -81,11 +81,10 @@ class User {
   @UpdatedAt()
   updatedAt: Date;
 
-  // Non-persisted field to hold the profile data
+  // Optional nested entity
   profile?: UserProfile;
 }
 
-// Define a subcollection for posts
 @Collection("posts")
 class Post {
   @ID()
@@ -110,7 +109,7 @@ class Post {
   comments?: Comment[];
 }
 
-// Define a comment as a subcollection of Post
+// Define a subcollection for comments using the new Subcollection decorator
 @Subcollection(Post)
 class Comment {
   @ID()
@@ -129,19 +128,21 @@ class Comment {
   updatedAt: Date;
 }
 
-// You can also customize the subcollection name
+// Customize the subcollection name if desired
 @Subcollection(Post, "post-comments")
 class CustomComment {
-  // fields...
+  // Define fields as needed
 }
 ```
 
 ### Use the Repository
 
+BurnKit's repository pattern simplifies CRUD operations and query building:
+
 ```typescript
 import { BurnKit } from "burnkit";
 
-// Get a repository for the User entity
+// Obtain a repository for the User entity
 const userRepo = BurnKit.getRepository(User);
 
 // Create a new user
@@ -152,12 +153,11 @@ async function createUser() {
     age: 30,
     roles: ["user"],
   });
-
   console.log(`Created user with ID: ${newUser.id}`);
   return newUser;
 }
 
-// Find a user by ID
+// Retrieve a user by ID
 async function findUser(id: string) {
   const user = await userRepo.findById(id);
   if (user) {
@@ -166,7 +166,7 @@ async function findUser(id: string) {
   return user;
 }
 
-// Query users
+// Query users with type-safe queries
 async function findActiveUsers() {
   const users = await userRepo
     .query()
@@ -180,13 +180,12 @@ async function findActiveUsers() {
   return users;
 }
 
-// Update a user
+// Update a user's details
 async function updateUser(id: string) {
   await userRepo.update(id, {
     name: "John Smith",
     age: 31,
   });
-
   console.log("User updated");
 }
 
@@ -199,20 +198,22 @@ async function deleteUser(id: string) {
 
 ### Working with Subcollections
 
+BurnKit streamlines working with subcollections using dedicated decorators and helper functions. In addition to using the subcollection decorator, you can generate Firestore paths using metadata utilities:
+
 ```typescript
 import { BurnKit } from "burnkit";
 
-// First, get a regular repository for posts
+// Get the repository for posts
 const postRepo = BurnKit.getRepository(Post);
 
 // Create a post
 const post = await postRepo.create({
   title: "Getting Started with BurnKit",
-  content: "BurnKit is an amazing TypeScript SDK for Firebase...",
+  content: "BurnKit is an innovative TypeScript SDK for Firebase...",
   authorId: "user123",
 });
 
-// Get a repository for the comments subcollection of a specific post
+// Retrieve a repository for the comments subcollection of a specific post
 const commentsRepo = BurnKit.getSubcollectionRepository(Comment, post.id);
 
 // Add a comment to the post
@@ -221,30 +222,26 @@ const comment = await commentsRepo.create({
   authorId: "user456",
 });
 
-// Get all comments for the post
+// Retrieve all comments for the post
 const comments = await commentsRepo.findAll();
+```
 
-// Query for specific comments
-const recentComments = await commentsRepo
-  .query()
-  .orderBy("createdAt", "desc")
-  .limit(5)
-  .get();
+For cases where you need to generate a subcollection path manually, use:
 
-// Get a post and load its comments
-const postWithComments = await postRepo.findById(post.id);
-if (postWithComments) {
-  // Load comments into the post object
-  postWithComments.comments = await commentsRepo.findAll();
-}
+```typescript
+import { buildSubcollectionPath } from "burnkit";
+
+const path = buildSubcollectionPath(Comment, "postId123");
+console.log("Subcollection path:", path);
 ```
 
 ### Working with Nested Entities
 
+BurnKit also supports managing nested entities, making it easy to model and interact with related data:
+
 ```typescript
 import { NestedEntityRepository, BurnKit } from "burnkit";
 
-// Create a nested entity repository for users and their profiles
 const userProfileRepo = new NestedEntityRepository(
   User, // Parent entity class
   UserProfile, // Child entity class
@@ -252,7 +249,6 @@ const userProfileRepo = new NestedEntityRepository(
   (userId) => `users/${userId}/profile` // Path builder for the nested collection
 );
 
-// Create a user with a profile
 async function createUserWithProfile() {
   const userData = {
     name: "Jane Doe",
@@ -262,42 +258,41 @@ async function createUserWithProfile() {
   };
 
   const profileData = {
-    bio: "Software engineer and hiking enthusiast",
+    bio: "Software engineer and avid hiker",
     avatarUrl: "https://example.com/avatar.jpg",
     phoneNumber: "+1234567890",
   };
 
   const user = await userProfileRepo.createWithNested(userData, profileData);
   console.log(`Created user with profile: ${user.id}`);
-  console.log(`Profile bio: ${user.profile?.bio}`);
-
   return user;
 }
 
-// Load a user with their profile
 async function loadUserWithProfile(userId: string) {
   const user = await userProfileRepo.loadWithNested(userId);
-
   if (user && user.profile) {
     console.log(`User: ${user.name}`);
-    console.log(`Profile: ${user.profile.bio}`);
+    console.log(`Profile Bio: ${user.profile.bio}`);
   }
-
   return user;
 }
 ```
 
 ### Using the Realtime Database
 
+BurnKit's Realtime Database integration provides comprehensive CRUD operations and advanced query capabilities:
+
 ```typescript
 import { RealtimeRepository } from "burnkit";
 
-// Create a repository for the realtime database
-const chatRepo = new RealtimeRepository<{
+interface ChatMessage {
   message: string;
   sender: string;
   timestamp: number;
-}>("chats");
+  isRead?: boolean;
+}
+
+const chatRepo = new RealtimeRepository<ChatMessage>("chats");
 
 // Add a new chat message
 async function sendMessage(sender: string, message: string) {
@@ -306,19 +301,16 @@ async function sendMessage(sender: string, message: string) {
     sender,
     timestamp: Date.now(),
   });
-
   console.log(`Message sent with ID: ${newMessage.id}`);
   return newMessage;
 }
 
-// Listen for new messages in real-time
-function listenForMessages(callback: (messages: any[]) => void) {
+// Listen for real-time updates
+function listenForMessages(callback: (messages: ChatMessage[]) => void) {
   const unsubscribe = chatRepo
     .query()
     .orderByChild("timestamp")
     .onValue(callback);
-
-  // Return unsubscribe function to stop listening
   return unsubscribe;
 }
 ```
@@ -327,7 +319,7 @@ function listenForMessages(callback: (messages: any[]) => void) {
 
 ### Decorators
 
-#### `@Collection(name: string)`
+#### @Collection(name: string)
 
 Marks a class as a Firestore collection.
 
@@ -336,12 +328,12 @@ Marks a class as a Firestore collection.
 class User {}
 ```
 
-#### `@Subcollection(parentEntity, collectionName?)`
+#### @Subcollection(parentEntity, collectionName?)
 
-Marks a class as a Firestore subcollection.
+Marks a class as a Firestore subcollection. The subcollection name defaults to the lowercase class name if not specified.
 
 ```typescript
-// Basic usage - will use lowercase class name as collection name
+// Basic usage
 @Subcollection(Post)
 class Comment {}
 
@@ -350,345 +342,186 @@ class Comment {}
 class CustomComment {}
 ```
 
-#### `@Field(options?: FieldOptions)`
+#### @Field(options?: FieldOptions)
 
-Marks a property as a field in the Firestore document.
+Marks a property as a Firestore document field.
 
 ```typescript
 @Field({ index: true })
 email: string;
 ```
 
-Options:
+Options include:
 
-- `name?: string` - Custom field name in Firestore
-- `index?: boolean` - Whether the field is indexed
-- `transformer?: { toFirestore?, fromFirestore? }` - Custom transformers for the field
+- name?: string — Custom field name in Firestore
+- index?: boolean — Enable indexing for this field
+- transformer?: { toFirestore?, fromFirestore? } — Custom transformers
 
-#### `@ID()`
+#### @ID()
 
-Marks a property as the document ID field.
+Marks a property as the document ID.
 
 ```typescript
 @ID()
 id: string;
 ```
 
-#### `@CreatedAt()`
+#### @CreatedAt()
 
-Marks a property to be automatically set with the creation timestamp.
+Automatically sets the creation timestamp.
 
 ```typescript
 @CreatedAt()
 createdAt: Date;
 ```
 
-#### `@UpdatedAt()`
+#### @UpdatedAt()
 
-Marks a property to be automatically updated with the update timestamp.
+Automatically updates the timestamp on modifications.
 
 ```typescript
 @UpdatedAt()
 updatedAt: Date;
 ```
 
-### BurnKit
+### Utility Functions
 
-#### `getRepository<T>(entityClass: new () => T): EntityRepository<T>`
+#### getSubcollectionMetadata(target: any): SubcollectionMetadata | undefined
 
-Gets a repository for an entity class.
+Retrieves metadata for a subcollection from a class.
+
+#### buildSubcollectionPath(childEntity: any, parentId: string): string
+
+Generates a Firestore path to a subcollection for a given parent document.
+
+```typescript
+import { buildSubcollectionPath } from "burnkit";
+const path = buildSubcollectionPath(Comment, "parentDocId");
+```
+
+### BurnKit Functions
+
+#### BurnKit.getRepository<T>(entityClass: new () => T): EntityRepository<T>
+
+Retrieves a repository for a specified entity.
 
 ```typescript
 const userRepo = BurnKit.getRepository(User);
 ```
 
-#### `getSubcollectionRepository<T>(entityClass: new () => T, parentId: string): EntityRepository<T>`
+#### BurnKit.getSubcollectionRepository<T>(entityClass: new () => T, parentId: string): EntityRepository<T>
 
-Gets a repository for a subcollection of a specific parent document.
+Retrieves a repository for a subcollection belonging to a specific parent document.
 
 ```typescript
 const commentsRepo = BurnKit.getSubcollectionRepository(Comment, postId);
 ```
 
-#### `clearCache(): void`
+#### BurnKit.clearCache(): void
 
-Clears the repository cache.
+Clears the internal repository cache.
 
 ```typescript
 BurnKit.clearCache();
 ```
 
-### EntityRepository
+### EntityRepository Methods
 
-#### `create(data: Partial<T>, id?: string): Promise<T>`
+- create(data: Partial<T>, id?: string): Promise<T> — Create a new entity.
+- findById(id: string): Promise<T | null> — Retrieve an entity by ID.
+- getById(id: string): Promise<T> — Retrieve an entity by ID (throws if not found).
+- update(id: string, data: Partial<T>): Promise<void> — Update an entity.
+- delete(id: string): Promise<void> — Delete an entity.
+- findAll(): Promise<T[]> — Retrieve all entities in a collection.
+- query(): QueryBuilder<T> — Create a query builder for advanced queries.
+- batch(operations: (batch: FirestoreBatchHelper<T>) => void): Promise<void> — Execute batch operations.
 
-Creates a new entity.
+### QueryBuilder Methods
 
-```typescript
-const user = await userRepo.create(
-  {
-    name: "John Doe",
-    email: "john@example.com",
-  },
-  "custom-id"
-); // ID is optional
-```
+- where(field: string, operator: FirestoreOperator, value: any): QueryBuilder<T> — Add filtering criteria.
+- orderBy(field: string, direction?: "asc" | "desc"): QueryBuilder<T> — Sort query results.
+- limit(limit: number): QueryBuilder<T> — Limit the number of documents.
+- offset(offset: number): QueryBuilder<T> — Skip a number of documents.
+- get(): Promise<T[]> — Execute the query.
+- getFirst(): Promise<T | null> — Retrieve the first matching document.
+- count(): Promise<number> — Count matching documents.
 
-#### `findById(id: string): Promise<T | null>`
+### RealtimeRepository Methods
 
-Finds an entity by ID, returns null if not found.
+- push(data: Partial<T>): Promise<T & { id: string }> — Create a new entry with an auto-generated ID.
+- set(id: string, data: Partial<T>): Promise<void> — Create or update an entry.
+- update(id: string, data: Partial<T>): Promise<void> — Update an existing entry.
+- get(id: string): Promise<(T & { id: string }) | null> — Retrieve an entry by ID.
+- getAll(): Promise<(T & { id: string })[]> — Retrieve all entries.
+- remove(id: string): Promise<void> — Delete an entry.
+- query(): RealtimeQueryBuilder<T> — Create a query builder for the Realtime Database.
 
-```typescript
-const user = await userRepo.findById("user-id");
-```
+### RealtimeQueryBuilder Methods
 
-#### `getById(id: string): Promise<T>`
-
-Gets an entity by ID, throws if not found.
-
-```typescript
-try {
-  const user = await userRepo.getById("user-id");
-} catch (error) {
-  // Entity not found
-}
-```
-
-#### `update(id: string, data: Partial<T>): Promise<void>`
-
-Updates an entity.
-
-```typescript
-await userRepo.update("user-id", {
-  name: "Updated Name",
-});
-```
-
-#### `delete(id: string): Promise<void>`
-
-Deletes an entity.
-
-```typescript
-await userRepo.delete("user-id");
-```
-
-#### `findAll(): Promise<T[]>`
-
-Finds all entities in the collection.
-
-```typescript
-const allUsers = await userRepo.findAll();
-```
-
-#### `query(): QueryBuilder<T>`
-
-Creates a query builder for the entity.
-
-```typescript
-const users = await userRepo.query().where("age", ">", 18).get();
-```
-
-### NestedEntityRepository
-
-#### `constructor(parentEntity, childEntity, childField, pathBuilder)`
-
-Creates a repository for managing nested entities.
-
-```typescript
-const userProfileRepo = new NestedEntityRepository(
-  User, // Parent entity class
-  UserProfile, // Child entity class
-  "profile", // Field name in User to store the profile
-  (userId) => `users/${userId}/profile` // Path builder for the nested collection
-);
-```
-
-#### `loadWithNested(parentId: string): Promise<T | null>`
-
-Loads a parent entity with its nested child entity(ies).
-
-```typescript
-const userWithProfile = await userProfileRepo.loadWithNested("user-id");
-```
-
-#### `createWithNested(parentData: Partial<T>, childData: Partial<R>): Promise<T>`
-
-Creates a parent entity with a nested child entity.
-
-```typescript
-const user = await userProfileRepo.createWithNested(
-  { name: "John Doe" },
-  { bio: "Software engineer" }
-);
-```
-
-### RealtimeRepository
-
-#### `constructor(path: string)`
-
-Creates a repository for Firebase Realtime Database.
-
-```typescript
-const chatRepo = new RealtimeRepository<ChatMessage>("chats");
-```
-
-#### `push(data: Partial<T>): Promise<T & { id: string }>`
-
-Creates a new entity with auto-generated ID.
-
-```typescript
-const message = await chatRepo.push({
-  message: "Hello",
-  sender: "John",
-});
-```
-
-#### `query(): RealtimeQueryBuilder<T>`
-
-Creates a query builder for the realtime database.
-
-```typescript
-const messages = await chatRepo
-  .query()
-  .orderByChild("timestamp")
-  .limitToLast(10)
-  .get();
-```
-
-## License
-
-MIT
+- orderByChild(child: string): RealtimeQueryBuilder<T> — Order results by a specific child key.
+- equalTo(child: string, value: string | number | boolean | null): RealtimeQueryBuilder<T> — Filter results by equality.
+- between(child: string, startValue: any, endValue: any): RealtimeQueryBuilder<T> — Filter results within a range.
+- limitToFirst(limit: number): RealtimeQueryBuilder<T> — Limit to the first N results.
+- limitToLast(limit: number): RealtimeQueryBuilder<T> — Limit to the last N results.
+- startAt(value: any): RealtimeQueryBuilder<T> — Start results at a specific value.
+- endAt(value: any): RealtimeQueryBuilder<T> — End results at a specific value.
+- get(): Promise<(T & { id: string })[]> — Execute the query.
+- onValue(callback: (data: (T & { id: string })[]) => void): () => void — Listen for real-time updates.
 
 ## Firebase Setup
 
-To use BurnKit with your Firebase project, you need to set up Firebase credentials:
+1. Create a Firebase Project: Visit the Firebase Console.
+2. Generate a Service Account Key:
+   - Navigate to Project Settings > Service Accounts.
+   - Click "Generate New Private Key" and download the JSON file.
+3. Configure Firebase:
 
-1. Create a Firebase project in the [Firebase Console](https://console.firebase.google.com/)
-
-2. Generate a service account key:
-
-   - Go to Project Settings > Service Accounts
-   - Click "Generate New Private Key"
-   - Save the downloaded JSON file
-
-3. Run the setup script to configure your Firebase credentials:
-
-   ```
-   npm run setup-firebase
-   ```
-
-   This script will guide you through the process of setting up your Firebase configuration.
-
-4. Test your Firebase connection:
-
-   ```
-   npm run test-firebase
-   ```
-
-5. Run the example files:
-   ```
-   ts-node examples/main-collection-example.ts
-   ts-node examples/relationships-example.ts
-   ```
-
-Note: The `serviceAccountKey.json` file contains sensitive information and should not be committed to your repository. It is already added to the `.gitignore` file.
-
-## Usage
-
-// Add usage instructions here
-
-## Firebase Realtime Database
-
-BurnKit supports Firebase Realtime Database operations through the `RealtimeRepository` class. This repository provides CRUD operations, advanced query capabilities, and real-time updates for interacting with your Firebase RTDB.
-
-### Features
-
-- **Initialization**: Configure Firebase Admin SDK using your service account and database URL.
-- **CRUD Operations**: Easily create, read, update, and delete entries with methods like `push()`, `set()`, `get()`, `update()`, and `remove()`.
-- **Querying**: Build complex queries with `orderByChild()`, `equalTo()`, `startAt()`, `limitToLast()`, and `between()` methods.
-- **Real-time Updates**: Listen for live updates with the `onValue()` listener.
-
-### Usage Example
-
-```typescript
-import { RealtimeRepository } from "burnkit";
-
-interface ChatMessage {
-  text: string;
-  sender: string;
-  timestamp: number;
-  isRead?: boolean;
-}
-
-const chatRepo = new RealtimeRepository<ChatMessage>("chats");
-
-// Create a new chat message
-const newMessage = await chatRepo.push({
-  text: "Hello, world!",
-  sender: "user-123",
-  timestamp: Date.now(),
-});
-
-// Listen for real-time updates
-const unsubscribe = chatRepo
-  .query()
-  .orderByChild("timestamp")
-  .onValue((messages) => {
-    console.log("Real-time messages:", messages);
-  });
-
-// Delete the message and clean up
-await chatRepo.remove(newMessage.id);
-unsubscribe();
+```bash
+npm run setup-firebase
 ```
 
-### Setup
+4. Test Firebase Connection:
 
-Ensure that your Firebase project has the Realtime Database enabled. Configure your Firebase Admin SDK with the correct `databaseURL`:
-
-```typescript
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-  databaseURL: `https://${
-    (serviceAccount as any).project_id
-  }-default-rtdb.firebaseio.com`,
-});
+```bash
+npm run test-firebase
 ```
 
-This configuration is essential for the Realtime Database to function correctly.
+5. Run Example Files:
+
+```bash
+ts-node examples/main-collection-example.ts
+```
+
+Security Note: The serviceAccountKey.json file contains sensitive information and should not be committed to version control. It is excluded via .gitignore.
 
 ## CI/CD Pipeline
 
-This project uses GitHub Actions for continuous integration and deployment:
+BurnKit utilizes GitHub Actions for continuous integration and deployment.
 
 ### Automated Workflow
 
-1. **Testing & Linting**: On every push and pull request to the main branch, the workflow:
-
-   - Runs all unit tests
-   - Verifies Firebase connectivity
-   - Executes TypeScript Firebase tests (Firestore and Realtime Database)
-   - Performs code linting
-
-2. **Deployment**: When a new version tag (e.g., `v1.0.0`) is pushed:
-   - All tests and linting are run
-   - If successful, the package is automatically published to npm
+1. Testing & Linting: On each push or pull request to the main branch:
+   - Unit tests and Firebase connectivity tests are run.
+   - Code linting and TypeScript checks are executed.
+2. Deployment: When a new version tag (e.g., v1.0.0) is pushed:
+   - All tests and linting are performed.
+   - If successful, the package is published to npm.
 
 ### Setting Up Secrets
 
-To use the CI/CD pipeline, you need to set up the following GitHub secrets:
+Configure the following GitHub secrets:
 
-- `FIREBASE_SERVICE_ACCOUNT_KEY`: Your Firebase service account key JSON (base64 encoded)
-- `NPM_TOKEN`: Your npm access token for publishing
+- FIREBASE_SERVICE_ACCOUNT_KEY: Base64 encoded Firebase service account key JSON.
+- NPM_TOKEN: Your npm access token.
 
 ### Manual Release Process
 
-1. Update the version in `package.json`
-2. Commit changes: `git commit -am "Release v1.0.0"`
-3. Create a new tag: `git tag v1.0.0`
-4. Push changes and tags: `git push && git push --tags`
-5. GitHub Actions will automatically publish to npm
+1. Update the version in package.json.
+2. Commit changes: git commit -am "Release v1.0.0".
+3. Tag the release: git tag v1.0.0.
+4. Push commits and tags: git push && git push --tags.
+5. GitHub Actions will automatically publish the package to npm.
 
 ---
 
-_This section is automatically maintained by BurnKit documentation._
+This section is automatically maintained by BurnKit documentation.
