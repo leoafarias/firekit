@@ -1,5 +1,12 @@
 // Export core interfaces
 // Export decorators
+// Export in-memory adapter
+export {
+  InMemoryAdapter,
+  InMemoryBatchProcessor,
+  InMemoryQueryBuilder,
+  InMemoryRepository,
+} from "./adapters";
 export {
   Collection,
   CollectionOptions,
@@ -29,6 +36,8 @@ export {
 } from "./models/entity.model";
 // Export main Repokit class
 export { Repokit } from "./repokit";
+// Export repository base class
+export { AbstractRepository } from "./repository";
 // Export metadata utilities
 export {
   addFieldMetadata,
