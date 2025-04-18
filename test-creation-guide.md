@@ -1,119 +1,120 @@
 # Test Creation Guide for Repokit
 
-This guide outlines the approach for creating effective tests for the Repokit project, based on existing patterns in Firekit and extending them for the new adapter-based architecture.
+This guide outlines the approach for testing the Repokit project, particularly focusing on the in-memory adapter components, which form the foundation of the adapter pattern implementation.
 
 ## Table of Contents
 
-1. [Testing Strategy](#testing-strategy)
-2. [Test Structure](#test-structure)
+1. [Testing Philosophy](#testing-philosophy)
+2. [Testing Structure](#testing-structure)
 3. [Test Types](#test-types)
-4. [Mocking Approach](#mocking-approach)
-5. [Testing Adapters](#testing-adapters)
-6. [Testing Repositories](#testing-repositories)
-7. [Testing Decorators](#testing-decorators)
-8. [Testing Utilities](#testing-utilities)
-9. [Integration Tests](#integration-tests)
+4. [Testing In-Memory Adapter Components](#testing-in-memory-adapter-components)
+5. [Testing Core Repokit Functionality](#testing-core-repokit-functionality)
+6. [Testing Decorators](#testing-decorators)
+7. [Testing ID Generator](#testing-id-generator)
+8. [Performance Testing](#performance-testing)
+9. [Integration Testing](#integration-testing)
 10. [Test Environment Setup](#test-environment-setup)
 
-## Testing Strategy
+## Testing Philosophy
 
-Repokit's testing strategy follows these principles:
+Repokit follows these testing principles:
 
-1. **Unit Testing**: Test individual components in isolation
-2. **Integration Testing**: Test components working together
-3. **Adapter Coverage**: Each adapter must have its own test suite
-4. **Behavior Verification**: Verify the same behavior works across different adapters
-5. **Test Isolation**: Tests should not depend on each other's state
-6. **Mocking External Dependencies**: Use mocks for external systems like Firestore
+1. **Component Isolation**: Test individual components in isolation where possible
+2. **Functional Verification**: Verify that components fulfill their contract
+3. **Edge Case Coverage**: Test boundary conditions and error handling
+4. **Performance Benchmarking**: Measure and verify performance characteristics
+5. **Integration Testing**: Verify components work together as expected
 
-## Test Structure
+## Testing Structure
 
-### Directory Structure
+### Directory Layout
 
 ```
 repokit/
   ├── tests/
-  │   ├── unit/
-  │   │   ├── decorators/
-  │   │   ├── repository/
-  │   │   ├── models/
-  │   │   └── utils/
-  │   ├── integration/
-  │   │   ├── inmemory/
-  │   │   ├── repokit-core/
-  │   │   └── compatibility/
-  │   └── helpers/
-  └── ...
+  │   ├── integration.test.ts      # Tests full component integration
+  │   ├── id-generator.test.ts     # Tests ID generation functionality
+  │   ├── performance.test.ts      # Tests performance characteristics
+  │   └── unit/                    # Unit tests for individual components
+  │       ├── adapters/            # Tests for adapter implementations
+  │       ├── decorators/          # Tests for decorators
+  │       ├── repository/          # Tests for repository classes
+  │       └── utils/               # Tests for utility functions
+  └── src/
+      └── ...
 ```
 
-### File Naming
+### File Naming Conventions
 
-- Name test files after the component being tested with `.test.ts` suffix
-- Examples: `collection.decorator.test.ts`, `in-memory.repository.test.ts`
+- Test files should be named after the component being tested with `.test.ts` suffix
+- Integration tests should have descriptive names reflecting the functionality being tested
+- When testing multiple components together, name files based on the feature or scenario
 
 ## Test Types
 
 ### Unit Tests
 
-Unit tests focus on testing individual components in isolation:
+Test individual components in isolation:
 
-- **Repository Base Class**: Test abstract behavior with mock implementations
-- **Decorators**: Test metadata storage and retrieval
-- **Adapters**: Test adapter-specific implementations in isolation
-- **Utilities**: Test helper functions and utilities
+```typescript
+// Example: Testing the Collection decorator
+describe("Collection Decorator", () => {
+  @Collection({ name: "test-collection" })
+  class TestEntity {}
+
+  it("should store collection name metadata", () => {
+    const collectionName = getCollectionName(TestEntity);
+    expect(collectionName).toBe("test-collection");
+  });
+});
+```
 
 ### Integration Tests
 
-Integration tests verify components working together:
-
-- **Adapter Integration**: Test repository operations through specific adapters
-- **Repokit Core**: Test the core functionality of Repokit, adapters, and repositories together
-- **Compatibility**: Test that the same operations produce equivalent results across adapters
-
-## Mocking Approach
-
-### Mocking Dependencies
-
-- Use Jest's mocking capabilities for external dependencies
-- Create reusable mock factories in the `tests/helpers` directory
-- Prefer dependency injection for easier testing
-
-### Mock Implementations
-
-Example of creating a mock adapter for testing:
+Test components working together:
 
 ```typescript
-// In tests/helpers/mock-adapter.ts
-import { IDatabaseAdapter, IRepository } from "../../src/interfaces";
+// Example: Testing repository CRUD operations with in-memory adapter
+describe("Repository CRUD with InMemoryAdapter", () => {
+  let adapter: InMemoryAdapter;
+  let repository: IRepository<TestEntity>;
 
-export class MockAdapter implements IDatabaseAdapter {
-  private mockStore: Record<string, Record<string, any>> = {};
+  beforeEach(async () => {
+    adapter = new InMemoryAdapter();
+    await Repokit.connect(adapter);
+    repository = Repokit.getRepository<TestEntity>(TestEntity);
+  });
 
-  async connect(): Promise<void> {
-    // No-op for mock
-  }
-
-  async disconnect(): Promise<void> {
-    // No-op for mock
-  }
-
-  getRepository<T extends object>(entityClass: any): IRepository<T> {
-    // Return a mock repository implementation
-    return new MockRepository<T>(entityClass, this.mockStore);
-  }
-
-  // Helper method for tests to access the underlying store
-  getMockStore(): Record<string, Record<string, any>> {
-    return this.mockStore;
-  }
-}
+  it("should create and retrieve an entity", async () => {
+    const entity = await repository.create({ name: "Test Entity" });
+    const retrieved = await repository.getById(entity.id);
+    expect(retrieved.name).toBe("Test Entity");
+  });
+});
 ```
 
-## Testing Adapters
+### Performance Tests
 
-### In-Memory Adapter
+Test performance characteristics:
 
-The in-memory adapter should be thoroughly tested since it will be used for testing other components:
+```typescript
+describe("Performance Tests", () => {
+  it("should handle large datasets efficiently", async () => {
+    const startTime = performance.now();
+
+    // Perform operations with large datasets
+
+    const endTime = performance.now();
+    expect(endTime - startTime).toBeLessThan(acceptableTimeThreshold);
+  });
+});
+```
+
+## Testing In-Memory Adapter Components
+
+### InMemoryAdapter
+
+Test the main adapter functionality:
 
 ```typescript
 describe("InMemoryAdapter", () => {
@@ -121,215 +122,582 @@ describe("InMemoryAdapter", () => {
 
   beforeEach(() => {
     adapter = new InMemoryAdapter();
+  });
+
+  it("should connect with empty store", async () => {
     await adapter.connect();
+    expect(adapter.isConnected()).toBe(true);
+
+    const store = adapter.getStore();
+    expect(Object.keys(store).length).toBe(0);
   });
 
-  afterEach(async () => {
-    await adapter.disconnect();
+  it("should connect with initial data", async () => {
+    const initialData = {
+      "test-collection": {
+        "test-id": { name: "Test" },
+      },
+    };
+
+    await adapter.connect({ initialData });
+    const store = adapter.getStore();
+
+    expect(store["test-collection"]).toBeDefined();
+    expect(store["test-collection"].get("test-id")).toEqual({ name: "Test" });
   });
 
-  describe("basic operations", () => {
-    it("should initialize with empty store", () => {
-      // Test initialization
-    });
-
-    it("should connect with initial data when provided", async () => {
-      // Test connection with data
-    });
-
-    it("should create a repository for an entity class", () => {
-      // Test repository creation
-    });
+  it("should throw error when connecting twice", async () => {
+    await adapter.connect();
+    await expect(adapter.connect()).rejects.toThrow();
   });
+
+  // More tests...
 });
 ```
 
-### Query Operations
+### InMemoryRepository
 
-Each adapter should implement and test all supported query operations:
+Test repository operations:
+
+```typescript
+describe("InMemoryRepository", () => {
+  let adapter: InMemoryAdapter;
+  let repository: InMemoryRepository<TestEntity>;
+  let collection: Map<string, any>;
+
+  beforeEach(async () => {
+    adapter = new InMemoryAdapter();
+    await adapter.connect();
+    collection = new Map();
+    repository = new InMemoryRepository<TestEntity>(
+      TestEntity,
+      adapter,
+      collection
+    );
+  });
+
+  it("should save an entity with metadata", async () => {
+    const result = await (repository as any)._save("test-id", { name: "Test" });
+
+    expect(result.id).toBe("test-id");
+    expect(result.createTime).toBeInstanceOf(Date);
+    expect(result.updateTime).toBeInstanceOf(Date);
+
+    expect(collection.has("test-id")).toBe(true);
+    const saved = collection.get("test-id");
+    expect(saved.name).toBe("Test");
+    expect(saved._metadata).toBeDefined();
+  });
+
+  // More tests...
+});
+```
+
+### InMemoryQueryBuilder
+
+Test query functionality:
 
 ```typescript
 describe("InMemoryQueryBuilder", () => {
-  // Setup code...
+  let getAllEntities: () => any[];
+  let queryBuilder: InMemoryQueryBuilder<any>;
 
-  describe("where", () => {
-    it("should filter by equality", async () => {
-      // Test equality filter
-    });
+  beforeEach(() => {
+    const entities = [
+      { id: "1", name: "Alice", age: 30, tags: ["admin", "user"] },
+      { id: "2", name: "Bob", age: 25, tags: ["user"] },
+      { id: "3", name: "Charlie", age: 35, tags: ["moderator", "user"] },
+    ];
 
-    it("should filter by greater than", async () => {
-      // Test > operator
-    });
-
-    // Tests for other operators...
+    getAllEntities = () => entities;
+    queryBuilder = new InMemoryQueryBuilder(getAllEntities);
   });
 
-  describe("orderBy", () => {
-    it("should sort results ascending", async () => {
-      // Test ascending sort
-    });
-
-    it("should sort results descending", async () => {
-      // Test descending sort
-    });
+  it("should filter by equality", async () => {
+    const results = await queryBuilder.where("name", "==", "Bob").getResults();
+    expect(results.length).toBe(1);
+    expect(results[0].id).toBe("2");
   });
 
-  // More query tests...
+  it("should filter by range operators", async () => {
+    const results = await queryBuilder
+      .where("age", ">", 25)
+      .where("age", "<", 35)
+      .getResults();
+
+    expect(results.length).toBe(1);
+    expect(results[0].id).toBe("1");
+  });
+
+  it("should filter by array-contains", async () => {
+    const results = await queryBuilder
+      .where("tags", "array-contains", "moderator")
+      .getResults();
+
+    expect(results.length).toBe(1);
+    expect(results[0].id).toBe("3");
+  });
+
+  it("should order results", async () => {
+    const results = await queryBuilder.orderBy("age", "desc").getResults();
+
+    expect(results.length).toBe(3);
+    expect(results[0].id).toBe("3");
+    expect(results[1].id).toBe("1");
+    expect(results[2].id).toBe("2");
+  });
+
+  // More tests...
 });
 ```
 
-### Batch Operations
+### InMemoryBatchProcessor
 
-Test batch operations including rollback functionality:
+Test batch operations:
 
 ```typescript
 describe("InMemoryBatchProcessor", () => {
-  // Setup code...
+  let adapter: InMemoryAdapter;
+  let store: { [collectionName: string]: Map<string, any> };
+  let batchProcessor: InMemoryBatchProcessor;
+
+  beforeEach(async () => {
+    adapter = new InMemoryAdapter();
+    await adapter.connect();
+    store = adapter.getStore();
+    store["users"] = new Map();
+    batchProcessor = new InMemoryBatchProcessor(store);
+  });
 
   it("should execute all operations on commit", async () => {
-    // Test successful batch commit
+    batchProcessor.create(UserEntity, { name: "Alice" }, "user1");
+    batchProcessor.create(UserEntity, { name: "Bob" }, "user2");
+
+    await batchProcessor.commit();
+
+    expect(store["users"].get("user1")).toBeDefined();
+    expect(store["users"].get("user2")).toBeDefined();
   });
 
-  it("should rollback all changes if an operation fails", async () => {
-    // Test rollback on failure
+  it("should rollback on failure", async () => {
+    batchProcessor.create(UserEntity, { name: "Alice" }, "user1");
+
+    // Add invalid operation that will fail
+    batchProcessor.update(UserEntity, "non-existent", { name: "Invalid" });
+
+    await expect(batchProcessor.commit()).rejects.toThrow();
+
+    // Verify no changes were made
+    expect(store["users"].size).toBe(0);
   });
+
+  // More tests...
 });
 ```
 
-## Testing Repositories
+## Testing Core Repokit Functionality
 
-The abstract repository should be tested with a concrete implementation:
+Test the central Repokit static class:
 
 ```typescript
-describe("AbstractRepository", () => {
-  // Create a concrete implementation for testing
-  class TestRepository<T extends object> extends AbstractRepository<T> {
-    // Implement abstract methods with test doubles
-    protected async _save() {
-      /* test implementation */
-    }
-    protected async _findById() {
-      /* test implementation */
-    }
-    protected async _update() {
-      /* test implementation */
-    }
-    protected async _delete() {
-      /* test implementation */
-    }
-  }
+describe("Repokit", () => {
+  let adapter: InMemoryAdapter;
 
-  // Test setup...
-
-  describe("create", () => {
-    it("should validate data before saving", async () => {
-      // Test validation in create method
-    });
-
-    it("should transform data before saving", async () => {
-      // Test transformation in create method
-    });
-
-    it("should call _save with transformed data", async () => {
-      // Test that _save is called with expected data
-    });
+  beforeEach(() => {
+    adapter = new InMemoryAdapter();
   });
 
-  // More tests for other methods...
+  afterEach(async () => {
+    if (Repokit.isConnected()) {
+      await Repokit.disconnect();
+    }
+  });
+
+  it("should connect to adapter", async () => {
+    await Repokit.connect(adapter);
+    expect(Repokit.isConnected()).toBe(true);
+  });
+
+  it("should disconnect from adapter", async () => {
+    await Repokit.connect(adapter);
+    await Repokit.disconnect();
+    expect(Repokit.isConnected()).toBe(false);
+  });
+
+  it("should get repository", async () => {
+    await Repokit.connect(adapter);
+    const repository = Repokit.getRepository(TestEntity);
+    expect(repository).toBeInstanceOf(InMemoryRepository);
+  });
+
+  it("should throw when getting repository without connection", async () => {
+    expect(() => Repokit.getRepository(TestEntity)).toThrow();
+  });
+
+  // More tests...
 });
 ```
 
 ## Testing Decorators
 
-Test each decorator thoroughly:
+### Collection Decorator
 
 ```typescript
 describe("Collection Decorator", () => {
-  @Collection("users")
-  class User {
-    id!: string;
-    name!: string;
+  it("should store collection name", () => {
+    @Collection({ name: "users" })
+    class User {}
+
+    expect(getCollectionName(User)).toBe("users");
+  });
+
+  it("should throw for empty collection name", () => {
+    expect(() => {
+      @Collection({ name: "" })
+      class InvalidEntity {}
+    }).toThrow();
+  });
+});
+```
+
+### Field Decorator
+
+```typescript
+describe("Field Decorator", () => {
+  it("should store field metadata", () => {
+    class TestClass {
+      @Field()
+      name!: string;
+    }
+
+    const fields = getFieldsMetadata(TestClass);
+    expect(fields.length).toBe(1);
+    expect(fields[0].propertyKey).toBe("name");
+  });
+
+  it("should store transformer options", () => {
+    const transformer = {
+      toDatabaseFormat: (value: any) => JSON.stringify(value),
+      fromDatabaseFormat: (value: any) => JSON.parse(value),
+    };
+
+    class TestClass {
+      @Field({ transformer })
+      data!: any;
+    }
+
+    const fields = getFieldsMetadata(TestClass);
+    expect(fields[0].options.transformer).toBe(transformer);
+  });
+});
+```
+
+### ID Decorator
+
+```typescript
+describe("ID Decorator", () => {
+  it("should mark a field as ID", () => {
+    class TestClass {
+      @ID()
+      id!: string;
+    }
+
+    const idField = getIdField(TestClass);
+    expect(idField).toBe("id");
+  });
+
+  it("should throw if multiple ID fields are defined", () => {
+    expect(() => {
+      class InvalidClass {
+        @ID()
+        id1!: string;
+
+        @ID()
+        id2!: string;
+      }
+    }).toThrow();
+  });
+});
+```
+
+## Testing ID Generator
+
+Test custom ID generation functionality:
+
+```typescript
+describe("ID Generator", () => {
+  // Custom ID generator implementation for testing
+  class TestIdGenerator implements IIdGenerator {
+    private counter = 100;
+
+    generateId(): string {
+      return `test-${++this.counter}`;
+    }
   }
 
-  it("should store collection name metadata", () => {
-    const collectionName = Reflect.getMetadata("collectionName", User);
-    expect(collectionName).toBe("users");
+  it("should use default UUID generator", async () => {
+    const adapter = new InMemoryAdapter();
+    await Repokit.connect(adapter);
+
+    const repository = Repokit.getRepository<TestEntity>(TestEntity);
+    const entity = await repository.create({ name: "Test" });
+
+    // UUID format: 8-4-4-4-12 characters
+    expect(entity.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+    );
   });
 
-  it("should retrieve collection name using helper function", () => {
-    const collectionName = getCollectionName(User);
-    expect(collectionName).toBe("users");
+  it("should use custom ID generator", async () => {
+    const adapter = new InMemoryAdapter();
+    adapter.setIdGenerator(new TestIdGenerator());
+    await Repokit.connect(adapter);
+
+    const repository = Repokit.getRepository<TestEntity>(TestEntity);
+    const entity = await repository.create({ name: "Test" });
+
+    expect(entity.id).toBe("test-101");
   });
 
-  it("should throw error when collection name is empty", () => {
-    expect(() => {
-      @Collection("")
-      class EmptyCollection {}
-    }).toThrow("Collection name cannot be empty");
+  it("should respect provided IDs", async () => {
+    const adapter = new InMemoryAdapter();
+    adapter.setIdGenerator(new TestIdGenerator());
+    await Repokit.connect(adapter);
+
+    const repository = Repokit.getRepository<TestEntity>(TestEntity);
+    const entity = await repository.create({ name: "Test" }, "custom-id");
+
+    expect(entity.id).toBe("custom-id");
   });
 });
 ```
 
-## Testing Utilities
+## Performance Testing
 
-Test utility functions thoroughly:
+Test performance characteristics:
 
 ```typescript
-describe("Metadata Utils", () => {
-  it("should add field metadata to class", () => {
-    // Test field metadata storage
+describe("Performance Tests", () => {
+  let adapter: InMemoryAdapter;
+  let repository: IRepository<TestEntity>;
+
+  beforeEach(async () => {
+    adapter = new InMemoryAdapter();
+    await Repokit.connect(adapter);
+    repository = Repokit.getRepository<TestEntity>(TestEntity);
   });
 
-  it("should retrieve field metadata from class", () => {
-    // Test field metadata retrieval
+  it("should efficiently handle large datasets", async () => {
+    const initialMemory = process.memoryUsage().heapUsed;
+    const startTime = performance.now();
+
+    // Create many entities
+    const entities = [];
+    for (let i = 0; i < 1000; i++) {
+      entities.push(
+        await repository.create({
+          name: `Entity ${i}`,
+          value: i,
+          tags: [`tag${i % 10}`],
+        })
+      );
+    }
+
+    const endTime = performance.now();
+    const finalMemory = process.memoryUsage().heapUsed;
+
+    console.log(`Created 1000 entities in ${endTime - startTime}ms`);
+    console.log(
+      `Memory used: ${(finalMemory - initialMemory) / 1024 / 1024}MB`
+    );
+
+    // Soft performance assertions
+    expect(endTime - startTime).toBeLessThan(5000); // Less than 5 seconds
+    expect((finalMemory - initialMemory) / 1024 / 1024).toBeLessThan(50); // Less than 50MB
+  });
+
+  it("should efficiently execute queries", async () => {
+    // Setup test data
+    for (let i = 0; i < 1000; i++) {
+      await repository.create({
+        name: `Entity ${i}`,
+        value: i,
+        tags: [`tag${i % 10}`],
+      });
+    }
+
+    const startTime = performance.now();
+
+    // Execute complex query
+    const results = await repository
+      .query()
+      .where("value", ">", 500)
+      .where("value", "<", 600)
+      .where("tags", "array-contains", "tag5")
+      .orderBy("value", "desc")
+      .getResults();
+
+    const endTime = performance.now();
+
+    console.log(`Query executed in ${endTime - startTime}ms`);
+
+    // Verify results
+    expect(results.length).toBe(10); // Should match 10 entities
+
+    // Soft performance assertion
+    expect(endTime - startTime).toBeLessThan(100); // Less than 100ms
   });
 });
 ```
 
-## Integration Tests
+## Integration Testing
 
-Integration tests should verify components working together:
+Test full system integration:
 
 ```typescript
-describe("Repokit Integration", () => {
-  // Test entity
-  @Collection("test-users")
-  class TestUser {
+describe("Integration Tests", () => {
+  // Define test entities
+  @Collection({ name: "users" })
+  class User {
+    @ID()
+    id!: string;
+
     @Field()
     name!: string;
 
     @Field()
     email!: string;
+
+    @CreatedAt()
+    createdAt!: Date;
+
+    @UpdatedAt()
+    updatedAt!: Date;
   }
 
-  let repokit: Repokit;
+  @Collection({ name: "orders" })
+  class Order {
+    @ID()
+    id!: string;
+
+    @Field()
+    userId!: string;
+
+    @Field()
+    amount!: number;
+
+    @CreatedAt()
+    createdAt!: Date;
+  }
+
   let adapter: InMemoryAdapter;
-  let repository: IRepository<TestUser>;
+  let userRepository: IRepository<User>;
+  let orderRepository: IRepository<Order>;
 
   beforeEach(async () => {
     adapter = new InMemoryAdapter();
     await Repokit.connect(adapter);
-    repository = Repokit.getRepository(TestUser);
+    userRepository = Repokit.getRepository<User>(User);
+    orderRepository = Repokit.getRepository<Order>(Order);
   });
 
   afterEach(async () => {
     await Repokit.disconnect();
   });
 
-  it("should create, retrieve, update and delete entities", async () => {
-    // Test CRUD operations through Repokit
-    const user = await repository.create({
-      name: "Test User",
-      email: "test@example.com",
+  it("should perform end-to-end CRUD operations", async () => {
+    // Create a user
+    const user = await userRepository.create({
+      name: "John Doe",
+      email: "john@example.com",
     });
 
     expect(user.id).toBeDefined();
+    expect(user.createdAt).toBeInstanceOf(Date);
+    expect(user.updatedAt).toBeInstanceOf(Date);
 
-    const retrieved = await repository.findById(user.id);
-    expect(retrieved).not.toBeNull();
-    expect(retrieved!.name).toBe("Test User");
+    // Create related orders
+    const order1 = await orderRepository.create({
+      userId: user.id,
+      amount: 100,
+    });
 
-    // Test update and delete
+    const order2 = await orderRepository.create({
+      userId: user.id,
+      amount: 200,
+    });
+
+    // Query related orders
+    const userOrders = await orderRepository
+      .query()
+      .where("userId", "==", user.id)
+      .orderBy("amount", "asc")
+      .getResults();
+
+    expect(userOrders.length).toBe(2);
+    expect(userOrders[0].amount).toBe(100);
+    expect(userOrders[1].amount).toBe(200);
+
+    // Update user
+    const updatedUser = await userRepository.update(user.id, {
+      name: "John Smith",
+    });
+
+    expect(updatedUser.name).toBe("John Smith");
+    expect(updatedUser.updatedAt.getTime()).toBeGreaterThan(
+      user.updatedAt.getTime()
+    );
+
+    // Delete order
+    await orderRepository.delete(order1.id);
+
+    // Verify deletion
+    const remainingOrders = await orderRepository
+      .query()
+      .where("userId", "==", user.id)
+      .getResults();
+
+    expect(remainingOrders.length).toBe(1);
+    expect(remainingOrders[0].id).toBe(order2.id);
+  });
+
+  it("should perform batch operations", async () => {
+    // Create batch
+    const batch = adapter.getRepository<User>(User).batch();
+
+    // Add operations
+    batch.create(User, { name: "User 1", email: "user1@example.com" }, "user1");
+    batch.create(User, { name: "User 2", email: "user2@example.com" }, "user2");
+    batch.create(Order, { userId: "user1", amount: 100 }, "order1");
+
+    // Commit batch
+    await batch.commit();
+
+    // Verify all operations were performed
+    const user1 = await userRepository.findById("user1");
+    const user2 = await userRepository.findById("user2");
+    const order = await orderRepository.findById("order1");
+
+    expect(user1).not.toBeNull();
+    expect(user2).not.toBeNull();
+    expect(order).not.toBeNull();
+    expect(order?.userId).toBe("user1");
+  });
+
+  it("should rollback batch on failure", async () => {
+    // Create batch
+    const batch = adapter.getRepository<User>(User).batch();
+
+    // Add operations with one that will fail
+    batch.create(User, { name: "User 1", email: "user1@example.com" }, "user1");
+    batch.update(User, "non-existent", { name: "Updated" }); // This will fail
+
+    // Commit batch should fail
+    await expect(batch.commit()).rejects.toThrow();
+
+    // Verify no operations were performed
+    const user1 = await userRepository.findById("user1");
+    expect(user1).toBeNull();
   });
 });
 ```
@@ -338,63 +706,77 @@ describe("Repokit Integration", () => {
 
 ### Jest Configuration
 
-Create a Jest configuration that supports TypeScript:
+Example `jest.config.js` for Repokit:
 
 ```javascript
-// jest.config.js
 module.exports = {
   preset: "ts-jest",
   testEnvironment: "node",
   roots: ["<rootDir>/tests"],
   testMatch: ["**/*.test.ts"],
-  moduleNameMapper: {
-    "^@/(.*)$": "<rootDir>/src/$1",
+  transform: {
+    "^.+\\.tsx?$": "ts-jest",
   },
-  collectCoverageFrom: ["src/**/*.ts", "!src/**/*.d.ts"],
-  coverageDirectory: "coverage",
-  coverageReporters: ["text", "lcov"],
+  setupFilesAfterEnv: ["<rootDir>/tests/jest.setup.ts"],
+  collectCoverage: true,
+  collectCoverageFrom: ["src/**/*.ts", "!src/index.ts", "!src/**/*.d.ts"],
+  coverageThreshold: {
+    global: {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80,
+    },
+  },
 };
 ```
 
-### Setup Files
+### Setup File Example
 
-Create setup files for common test initialization:
+Example `tests/jest.setup.ts`:
 
 ```typescript
-// tests/setup.ts
-import "reflect-metadata"; // Required for decorators
+import "reflect-metadata";
 
-// Global test setup
-beforeAll(() => {
-  // Common setup for all tests
-});
+// Global test timeout
+jest.setTimeout(10000);
 
+// Console log interceptor for cleaner test output
+const originalConsoleLog = console.log;
+console.log = (...args) => {
+  if (process.env.VERBOSE_TESTS === "true") {
+    originalConsoleLog(...args);
+  }
+};
+
+// Global cleanup
 afterAll(() => {
-  // Common teardown for all tests
+  // Any global cleanup needed
 });
 ```
 
-### Testing Commands
+### Test Utilities Example
 
-Add these scripts to package.json:
+Create helper utilities for testing:
 
-```json
-{
-  "scripts": {
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
-  }
+```typescript
+// tests/test-utils.ts
+import { ClassType } from "class-transformer-validator";
+import { InMemoryAdapter, Repokit } from "../src";
+
+export async function setupTestEnvironment() {
+  const adapter = new InMemoryAdapter();
+  await Repokit.connect(adapter);
+  return adapter;
+}
+
+export async function teardownTestEnvironment() {
+  await Repokit.disconnect();
+}
+
+export function createTestRepository<T extends object>(
+  entityClass: ClassType<T>
+) {
+  return Repokit.getRepository<T>(entityClass);
 }
 ```
-
-## Best Practices
-
-1. **Independent Tests**: Each test should be independent and not rely on state from other tests
-2. **Clear Assertions**: Use descriptive assertions that explain what is being tested
-3. **Test Fixtures**: Use test fixtures for common test data setup
-4. **Complete Coverage**: Aim for complete test coverage of all code paths
-5. **Edge Cases**: Test edge cases and error handling paths
-6. **Clean Test Data**: Clean up test data after tests to prevent test pollution
-7. **Fast Tests**: Keep tests fast by minimizing external dependencies
-8. **Documentation**: Document test helpers and test patterns for team reference

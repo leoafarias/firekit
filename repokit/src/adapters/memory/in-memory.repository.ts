@@ -1,5 +1,9 @@
 import { ClassType } from "class-transformer-validator";
-import { IBatchProcessor, IQueryBuilder } from "../../interfaces";
+import {
+  IBatchProcessor,
+  IDatabaseAdapter,
+  IQueryBuilder,
+} from "../../interfaces";
 import { EntityWithData } from "../../models/entity.model";
 import { AbstractRepository } from "../../repository";
 import { InMemoryBatchProcessor } from "./in-memory.batch-processor";
@@ -15,13 +19,15 @@ export class InMemoryRepository<
   /**
    * Creates an in-memory repository instance.
    * @param entityClass - Entity class constructor
+   * @param adapter - Database adapter instance
    * @param collectionMap - Map storing the collection data
    */
   constructor(
     entityClass: ClassType<T>,
+    private readonly adapter: IDatabaseAdapter,
     private readonly collectionMap: Map<string, any>
   ) {
-    super(entityClass, collectionMap);
+    super(entityClass, adapter);
   }
 
   /**

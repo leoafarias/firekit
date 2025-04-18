@@ -57,7 +57,20 @@ export abstract class AbstractRepository<T extends object>
     const dbData = this._toDatabaseFormat(validatedData);
 
     // Generate ID if not provided
-    const entityId = id || uuidv4();
+    let entityId: string;
+    if (id) {
+      entityId = id;
+    } else {
+      // Use adapter's ID generator if available, otherwise fallback to UUID
+      if (
+        this.dbContext.getIdGenerator &&
+        typeof this.dbContext.getIdGenerator === "function"
+      ) {
+        entityId = await this.dbContext.getIdGenerator().generateId();
+      } else {
+        entityId = uuidv4();
+      }
+    }
 
     // Call adapter-specific implementation
     const {

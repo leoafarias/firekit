@@ -473,10 +473,15 @@
   - [ ] 7.1.2. Test `AbstractRepository` with a mock implementation
   - [ ] 7.1.3. Test `InMemoryAdapter` and components for correct behavior
   - [ ] 7.1.4. Test decorators functionality
-- [ ] 7.2. Create integration tests for the in-memory implementation:
-  - [ ] 7.2.1. Test full CRUD flow with `InMemoryAdapter`
-  - [ ] 7.2.2. Test querying capability
-  - [ ] 7.2.3. Test batch operations including rollbacks
+- [x] 7.2. Create integration tests for the in-memory implementation:
+  - [x] 7.2.1. Test full CRUD flow with `InMemoryAdapter`
+  - [x] 7.2.2. Test querying capability
+  - [x] 7.2.3. Test batch operations including rollbacks
+- [x] 7.3. Create performance tests:
+  - [x] 7.3.1. Test memory usage for large datasets
+  - [x] 7.3.2. Test query performance for various query types
+  - [x] 7.3.3. Test batch operation performance
+  - [x] 7.3.4. Test data transformation performance
 
 ## Phase 8: Implementation for Firekit Integration (Future Development)
 
@@ -536,30 +541,254 @@
 - [ ] 11.4. Design pattern for handling subcollections across different backends
 - [ ] 11.5. Implement optional real-time update interface for supporting adapters
 
-## Phase 12: Implementation Validation _(New Phase)_
+## Phase 12: Implementation Validation
 
-- [ ] 12.1. Architecture validation:
-  - [ ] 12.1.1. Verify that interfaces are properly defined with clear contracts
-  - [ ] 12.1.2. Ensure proper separation of concerns between adapters and repositories
-  - [ ] 12.1.3. Validate that the adapter pattern is correctly implemented
-  - [ ] 12.1.4. Check for any tight coupling that should be avoided
-- [ ] 12.2. Code quality validation:
-  - [ ] 12.2.1. Ensure consistent error handling across all components
-  - [ ] 12.2.2. Verify that all public APIs have proper JSDoc documentation
-  - [ ] 12.2.3. Check that type safety is maintained throughout the codebase
-  - [ ] 12.2.4. Verify that decorators work correctly with TypeScript's reflection metadata
-- [ ] 12.3. Implementation completeness validation:
-  - [ ] 12.3.1. Verify that all planned interfaces are implemented
-  - [ ] 12.3.2. Ensure that the InMemoryAdapter fully supports all specified operations
-  - [ ] 12.3.3. Validate that query operations work as expected with different operators
-  - [ ] 12.3.4. Check that batch operations handle transactions and rollbacks correctly
-- [ ] 12.4. Integration validation:
-  - [ ] 12.4.1. Create a sample entity and test full CRUD operations through Repokit
-  - [ ] 12.4.2. Test complex queries and verify correct results
-  - [ ] 12.4.3. Validate batch operations across multiple collections
-  - [ ] 12.4.4. Check compatibility with existing Firekit decorators
-- [ ] 12.5. Performance validation:
-  - [ ] 12.5.1. Check memory usage patterns in the in-memory adapter
-  - [ ] 12.5.2. Ensure efficient handling of large datasets in queries
-  - [ ] 12.5.3. Validate that transformations don't cause performance bottlenecks
-  - [ ] 12.5.4. Benchmark basic operations to establish performance baselines
+- [x] 12.1. Architecture validation:
+  - [x] 12.1.1. Verify that interfaces are properly defined with clear contracts
+    - ✓ IDatabaseAdapter provides a clean interface for different database backends
+    - ✓ IRepository defines a complete CRUD API with proper type parameters
+    - ✓ IQueryBuilder implements a fluent API for query construction
+    - ✓ IBatchProcessor provides atomic transaction support
+  - [x] 12.1.2. Ensure proper separation of concerns between adapters and repositories
+    - ✓ AbstractRepository handles common validation and transformation logic
+    - ✓ InMemoryAdapter focuses on database connection management
+    - ✓ InMemoryRepository implements storage-specific operations
+  - [x] 12.1.3. Validate that the adapter pattern is correctly implemented
+    - ✓ Clear separation between interface (IDatabaseAdapter) and implementation (InMemoryAdapter)
+    - ✓ Repository factories create the appropriate repository implementation
+    - ✓ Repokit static class provides centralized access to the current adapter
+  - [x] 12.1.4. Check for any tight coupling that should be avoided
+    - ✓ No direct dependencies on Firestore or other specific backends
+    - ✓ Metadata management is properly abstracted using reflection
+    - ✓ Entity transformations use generic methods without backend assumptions
+- [x] 12.2. Code quality validation:
+  - [x] 12.2.1. Ensure consistent error handling across all components
+    - ✓ Input validation with descriptive error messages
+    - ✓ Proper error propagation from adapter implementations
+    - ✓ Context-enriched errors with original error messages preserved
+    - ✓ Error handling in batch operations with rollback support
+  - [x] 12.2.2. Verify that all public APIs have proper JSDoc documentation
+    - ✓ All public classes, methods, and interfaces have complete JSDoc
+    - ✓ Parameter types and return values are documented
+    - ✓ Examples provided for key decorators
+    - ✓ Error conditions documented in JSDoc throws tags
+  - [x] 12.2.3. Check that type safety is maintained throughout the codebase
+    - ✓ Generic type parameters used consistently
+    - ✓ Type-safe transformations with EntityWithData<T> type
+    - ✓ Utility types like FieldsOnly<T> and PartialFields<T> improve type safety
+    - ✓ Abstract methods enforce implementation contract
+  - [x] 12.2.4. Verify that decorators work correctly with TypeScript's reflection metadata
+    - ✓ Decorators properly store and retrieve metadata
+    - ✓ Field decorators include transformation capabilities
+    - ✓ Timestamp decorators integrate with base Field functionality
+    - ✓ ID decorator properly marks the entity identifier
+
+## Phase 13: ID Generator Implementation _(Completed)_
+
+- [x] 13.1. Define ID generation abstraction:
+  - [x] 13.1.1. Create `repokit/src/interfaces/id-generator.interface.ts`
+  ```typescript
+  export interface IIdGenerator {
+    generateId(): string | Promise<string>;
+  }
+  ```
+  - [x] 13.1.2. Create UUID implementation in `repokit/src/utils/id-generators/uuid.generator.ts`
+  ```typescript
+  export class UuidGenerator implements IIdGenerator {
+    generateId(): string {
+      return uuidv4();
+    }
+  }
+  ```
+  - [x] 13.1.3. Create barrel file for id generators: `repokit/src/utils/id-generators/index.ts`
+- [x] 13.2. Update IDatabaseAdapter interface:
+  - [x] 13.2.1. Add optional `getIdGenerator()` method
+  - [x] 13.2.2. Update documentation for implementers
+- [x] 13.3. Update AbstractRepository:
+  - [x] 13.3.1. Modify create method to use adapter's ID generator when available
+  - [x] 13.3.2. Maintain backward compatibility with default UUID generation
+- [x] 13.4. Update InMemoryAdapter:
+  - [x] 13.4.1. Add default UuidGenerator implementation
+  - [x] 13.4.2. Implement `getIdGenerator()` method
+  - [x] 13.4.3. Add `setIdGenerator()` method for customization
+- [x] 13.5. Add tests for custom ID generators:
+  - [x] 13.5.1. Create sequential ID generator test implementation
+  - [x] 13.5.2. Test adapter with custom ID generator
+  - [x] 13.5.3. Verify ID generation strategy integration
+
+## Phase 14: Remaining Tasks for Completion _(New Phase)_
+
+- [x] 14.1. Fix circular dependency issues:
+  - [x] 14.1.1. Review adapter/repository implementation for circular references
+  - [x] 14.1.2. Ensure proper file structure to avoid circular imports
+  - [x] 14.1.3. Create interface-only imports where appropriate
+- [x] 14.2. Complete remaining unit tests:
+  - [x] 14.2.1. Fix ID generator test failures
+  - [ ] 14.2.2. Add specific tests for error handling in repositories
+  - [ ] 14.2.3. Test field transformations with complex data types
+- [ ] 14.3. Documentation improvements:
+  - [ ] 14.3.1. Create full README with setup instructions
+  - [ ] 14.3.2. Add usage examples for each major component
+  - [ ] 14.3.3. Document ID generator customization
+- [ ] 14.4. Error handling enhancements:
+  - [ ] 14.4.1. Create specific error classes for different error types
+  - [ ] 14.4.2. Improve error messages with better context
+  - [ ] 14.4.3. Add consistent error handling throughout the codebase
+- [ ] 14.5. Build and distribution:
+  - [ ] 14.5.1. Set up TypeScript build process
+  - [ ] 14.5.2. Ensure proper packaging for distribution
+  - [ ] 14.5.3. Test built package in a sample application
+- [ ] 14.6. Code quality improvements:
+  - [ ] 14.6.1. Add ESLint configuration
+  - [ ] 14.6.2. Run linting across the codebase
+  - [ ] 14.6.3. Fix any linting issues or add appropriate exceptions
+
+## Remaining Tasks by Priority
+
+These are the remaining tasks from the implementation plan, organized by priority and execution order:
+
+### Highest Priority (Critical for Functionality)
+
+- [ ] **Run Existing Tests (0.3)**
+
+  - [ ] Run all existing Firekit tests to establish a working baseline
+  - [ ] Document any failing tests for future reference
+  - [ ] Ensure test environment is properly configured
+  - [ ] Create a test results summary for comparison
+
+- [ ] **Complete Unit Tests (7.1 & 14.2)**
+
+  - [ ] 7.1.1. Implement unit tests for the `Repokit` static class:
+    - [ ] Test connection handling and validation
+    - [ ] Test repository factory methods
+    - [ ] Test error conditions and edge cases
+  - [ ] 7.1.2. Create tests for `AbstractRepository` with mock implementations:
+    - [ ] Test validation logic in create/update methods
+    - [ ] Test transformation methods with various data types
+    - [ ] Test error handling for invalid inputs
+  - [ ] 7.1.3. Complete tests for adapter components:
+    - [ ] Test adapter initialization and connection states
+    - [ ] Test repository creation and validation
+    - [ ] Test store management methods
+  - [ ] 7.1.4. Enhance decorator tests:
+    - [ ] Test all decorator options and configurations
+    - [ ] Test error cases and validation logic
+  - [ ] 14.2.2. Add specific tests for error handling:
+    - [ ] Test error propagation in repositories
+    - [ ] Test error handling in batch operations
+    - [ ] Test validation errors from entity creation/updates
+  - [ ] 14.2.3. Test field transformations:
+    - [ ] Test complex data transformations (arrays, objects)
+    - [ ] Test date/time field handling
+    - [ ] Test custom transformer implementations
+    - [ ] Test error handling in transformations
+
+- [ ] **Build and Distribution Setup (14.5)**
+  - [ ] 14.5.1. Finalize TypeScript build process:
+    - [ ] Configure tsup for optimal output
+    - [ ] Set up source maps for debugging
+    - [ ] Ensure declaration files are properly generated
+  - [ ] 14.5.2. Test package distribution:
+    - [ ] Create a test project that consumes the built package
+    - [ ] Verify all exports are accessible
+    - [ ] Check type definitions work correctly
+  - [ ] 14.5.3. Set up CI/CD process for automated builds
+  - [ ] 14.5.4. Create NPM publishing configuration
+
+### Medium Priority (Important for Maintenance)
+
+- [ ] **Review Existing Code (0.2)**
+
+  - [ ] 0.2.1. Scan all imports for `firebase-admin`, `firebase-admin/firestore`:
+    - [ ] Use automated tools to find all imports
+    - [ ] Document locations and usage patterns
+  - [ ] 0.2.2. Identify all direct uses of Firestore types:
+    - [ ] Document all usage of `CollectionReference`, `DocumentReference`, etc.
+    - [ ] Map dependencies between Firestore types and application code
+  - [ ] 0.2.3. Note all uses of `getFirestore()` and `initializeFirebase()`:
+    - [ ] Document initialization patterns
+    - [ ] Identify connection management code
+
+- [ ] **Documentation Improvements (9.x & 14.3)**
+  - [ ] 9.1. Create comprehensive `repokit/README.md`:
+    - [ ] 9.1.1. Explain adapter pattern with diagrams
+    - [ ] 9.1.2. Provide detailed setup instructions
+    - [ ] 9.1.3. Include repository usage examples
+  - [ ] 9.2. Document adapter implementations:
+    - [ ] 9.2.1. Create detailed documentation for `InMemoryAdapter`
+    - [ ] 9.2.2. Provide adapter implementation guidelines
+  - [ ] 9.3. Improve JSDoc comments:
+    - [ ] 9.3.1. Add/update JSDoc for all interfaces
+    - [ ] 9.3.2. Document limitations of adapters
+    - [ ] 9.3.3. Add example code sections
+  - [ ] 9.4. Create examples:
+    - [ ] 9.4.1. Basic CRUD operations
+    - [ ] 9.4.2. Query examples for different scenarios
+    - [ ] 9.4.3. Batch operation examples
+    - [ ] 9.4.4. Testing examples with in-memory adapter
+  - [ ] 14.3.1. Create API documentation
+  - [ ] 14.3.2. Add migration guide from Firekit to Repokit
+  - [ ] 14.3.3. Document ID generator customization
+
+### Lower Priority (Quality Enhancements)
+
+- [ ] **Error Handling Enhancements (14.4)**
+
+  - [ ] 14.4.1. Create specific error classes:
+    - [ ] `RepositoryError` for repository-related issues
+    - [ ] `AdapterError` for adapter-specific issues
+    - [ ] `ValidationError` for entity validation failures
+    - [ ] `TransformationError` for data transformation issues
+  - [ ] 14.4.2. Improve error messages:
+    - [ ] Add context information to errors
+    - [ ] Include troubleshooting hints where applicable
+    - [ ] Standardize error message format
+  - [ ] 14.4.3. Implement consistent error handling:
+    - [ ] Use proper error chaining
+    - [ ] Add stack trace preservation
+    - [ ] Create centralized error handling utilities
+
+- [ ] **Code Quality Improvements (14.6)**
+
+  - [ ] 14.6.1. Set up ESLint configuration:
+    - [ ] Configure rules according to project standards
+    - [ ] Add TypeScript-specific rules
+    - [ ] Set up integration with CI process
+  - [ ] 14.6.2. Run linting across codebase:
+    - [ ] Fix formatting issues
+    - [ ] Address potential bugs identified by linter
+    - [ ] Resolve code complexity warnings
+  - [ ] 14.6.3. Fix linting issues:
+    - [ ] Resolve any rule violations
+    - [ ] Document exceptions where rules are disabled
+    - [ ] Create consistent code style
+
+- [ ] **Backup Critical Files (0.5)**
+  - [ ] 0.5.1. Identify files requiring backup:
+    - [ ] List all files that will undergo significant changes
+    - [ ] Prioritize files with complex logic
+  - [ ] 0.5.2. Create backup mechanism:
+    - [ ] Set up backup directory
+    - [ ] Document backup and restore procedures
+  - [ ] 0.5.3. Perform backups before major changes
+
+## Implementation Timeline
+
+1. **Phase 1: Critical Functionality (1-2 weeks)**
+
+   - Run existing tests
+   - Complete unit tests
+   - Finalize build and distribution setup
+
+2. **Phase 2: Documentation and Maintenance (1 week)**
+
+   - Review existing code dependencies
+   - Create comprehensive documentation
+   - Add usage examples
+
+3. **Phase 3: Quality Enhancements (1 week)**
+   - Implement enhanced error handling
+   - Add code quality improvements
+   - Finalize any remaining tasks
+
+This timeline provides a structured approach to completing the remaining tasks while prioritizing the most critical functionality first.

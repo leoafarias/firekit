@@ -1,4 +1,5 @@
 import { Entity } from "../models/entity.model";
+import { IIdGenerator } from "./id-generator.interface";
 import { IBatchProcessor, IQueryBuilder } from "./query.interface";
 
 /**
@@ -28,6 +29,12 @@ export interface IDatabaseAdapter {
    * @returns True if connected, false otherwise
    */
   isConnected(): boolean;
+
+  /**
+   * Get the ID generator for this adapter
+   * @returns ID generator instance used for generating new entity IDs
+   */
+  getIdGenerator?(): IIdGenerator;
 }
 
 /**

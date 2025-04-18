@@ -1,6 +1,7 @@
 import { ClassType } from "class-transformer-validator";
 import { getCollectionName } from "../../decorators";
-import { IDatabaseAdapter, IRepository } from "../../interfaces";
+import { IDatabaseAdapter, IIdGenerator, IRepository } from "../../interfaces";
+import { UuidGenerator } from "../../utils/id-generators";
 import { InMemoryRepository } from "./in-memory.repository";
 
 /**
@@ -18,6 +19,12 @@ export class InMemoryAdapter implements IDatabaseAdapter {
    * Flag indicating whether the adapter is connected.
    */
   private connected: boolean = false;
+
+  /**
+   * ID generator for creating new entity IDs
+   * Defaults to UUID v4 generator
+   */
+  private idGenerator: IIdGenerator = new UuidGenerator();
 
   /**
    * Connect to the in-memory database.
@@ -93,8 +100,13 @@ export class InMemoryAdapter implements IDatabaseAdapter {
       this.dbStore[collectionName] = new Map<string, any>();
     }
 
-    // Create and return repository instance
-    return new InMemoryRepository<T>(entityClass, this.dbStore[collectionName]);
+    // Create and return repository instance with the adapter instance as context
+    // and pass the collection map as a separate parameter
+    return new InMemoryRepository<T>(
+      entityClass,
+      this,
+      this.dbStore[collectionName]
+    );
   }
 
   /**
@@ -141,5 +153,24 @@ export class InMemoryAdapter implements IDatabaseAdapter {
     for (const collectionName in this.dbStore) {
       this.dbStore[collectionName].clear();
     }
+  }
+
+  /**
+   * Get the ID generator used by this adapter
+   * @returns The ID generator instance
+   */
+  getIdGenerator(): IIdGenerator {
+    return this.idGenerator;
+  }
+
+  /**
+   * Set a custom ID generator for this adapter
+   * @param generator - The ID generator to use
+   */
+  setIdGenerator(generator: IIdGenerator): void {
+    if (!generator) {
+      throw new Error("ID generator cannot be null or undefined");
+    }
+    this.idGenerator = generator;
   }
 }
