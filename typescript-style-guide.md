@@ -169,6 +169,7 @@ This document outlines coding conventions and style guidelines for the Repokit a
 - **Property Initializers**: Use property initializers or constructor for initialization
 - **Method Organization**: Group methods by functionality
 - **Abstract Classes**: Use abstract classes to share code between implementations
+
   ```typescript
   abstract class AbstractRepository<T> implements IRepository<T> {
     // Common implementation

@@ -7,7 +7,7 @@
   - [ ] 0.2.1. Scan all imports for `firebase-admin`, `firebase-admin/firestore`
   - [ ] 0.2.2. Identify all direct uses of Firestore types like `CollectionReference`, `DocumentReference`, etc.
   - [ ] 0.2.3. Note all uses of `getFirestore()` and `initializeFirebase()`
-- [ ] 0.3. Run existing tests to ensure they pass before changes
+- [x] 0.3. Run existing tests to ensure they pass before changes
 - [x] 0.4. Create new `repokit` directory at the root level to contain the abstraction layer
 - [ ] 0.5. Backup critical files that will be heavily modified
 
@@ -649,12 +649,14 @@ These are the remaining tasks from the implementation plan, organized by priorit
 
 ### Highest Priority (Critical for Functionality)
 
-- [ ] **Run Existing Tests (0.3)**
+- [x] **Run Existing Tests (0.3)**
 
-  - [ ] Run all existing Firekit tests to establish a working baseline
-  - [ ] Document any failing tests for future reference
-  - [ ] Ensure test environment is properly configured
-  - [ ] Create a test results summary for comparison
+  - [x] Run all existing Firekit tests to establish a working baseline
+  - [x] Document any failing tests for future reference:
+    - Fixed issue with collection decorator test using wrong metadata key
+    - Fixed issue with batch operations across collections in InMemoryRepository
+  - [x] Ensure test environment is properly configured
+  - [x] Create a test results summary for comparison
 
 - [ ] **Complete Unit Tests (7.1 & 14.2)**
 
