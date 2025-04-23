@@ -1,47 +1,52 @@
-// Export core interfaces
-// Export decorators
-// Export in-memory adapter
+// --- Core ---
+export { Entity } from "./interfaces/entity.interface";
+export { Stash } from "./stash";
+export { ClassType } from "./utils/class.type";
+
+// --- Adapters ---
+export {
+  FileSystemAdapter,
+  FileSystemAdapterOptions,
+} from "./adapters/filesystem/filesystem.adapter";
 export {
   InMemoryAdapter,
-  InMemoryBatchProcessor,
-  InMemoryQueryBuilder,
-  InMemoryRepository,
-} from "./adapters";
+  InMemoryAdapterOptions,
+} from "./adapters/memory/memory.adapter";
+export { IDatabaseAdapter } from "./interfaces/adapter.interface";
+export { IIdGenerator } from "./interfaces/id-generator.interface";
+
+// --- Repositories ---
+export { IRepository } from "./interfaces/repository.interface";
+export { AbstractRepository } from "./repository/base.repository";
+// Direct export for InMemoryRepository is fine, as it's the only export from that file needed here
+export { InMemoryRepository } from "./adapters/memory/memory.repository";
+
+// --- Querying ---
+export {
+  ComparisonOperator,
+  IQueryBuilder,
+  QueryOptions,
+  SortDirection,
+} from "./interfaces/query.interface";
+
+// --- Decorators ---
 export {
   Collection,
   CollectionOptions,
   CreatedAt,
   Field,
-  ID,
-  UpdatedAt,
   getCollectionName,
   getCreatedAtField,
   getIdField,
   getUpdatedAtField,
+  ID,
+  UpdatedAt,
 } from "./decorators";
+
+// --- Metadata ---
 export {
-  IBatchProcessor,
-  IDatabaseAdapter,
-  IQueryBuilder,
-  IRepository,
-  QueryOperator,
-  SortDirection,
-} from "./interfaces";
-// Export entity model types
-export {
-  Entity,
-  EntityWithData,
-  FieldsOnly,
-  PartialFields,
-} from "./models/entity.model";
-// Export main Stash class
-export { Stash } from "./stash";
-// Export repository base class
-export { AbstractRepository } from "./repository";
-// Export metadata utilities
-export {
+  addFieldMetadata,
   FieldMetadata,
   FieldOptions,
-  addFieldMetadata,
   getFieldsMetadata,
 } from "./utils/metadata.utils";

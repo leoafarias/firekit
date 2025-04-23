@@ -1,108 +1,91 @@
 import "reflect-metadata";
-import { InMemoryAdapter, Stash } from "../src";
-import { Collection, Field, ID } from "../src/decorators";
-import { IIdGenerator } from "../src/interfaces";
+import { Stash } from "../src";
+import { InMemoryAdapter } from "../src/adapters/memory/memory.adapter"; // Import adapter
+import { Collection, Field } from "../src/decorators"; // Removed unused ID import
+// Removed Entity import as we use BaseEntity
+// import { Entity } from "../src/interfaces/entity.interface"; // Import base Entity
+import { BaseEntity } from "../src/entities/base.entity"; // Import BaseEntity
+import { Creatable } from "../src/interfaces/entity.interface"; // Import Creatable
 
-// Define a simple sequential ID generator for testing
-class SequentialIdGenerator implements IIdGenerator {
-  private currentId = 0;
+// Mock the uuid library
+jest.mock("uuid", () => ({
+  v4: jest.fn(),
+}));
+// Import v4 *after* mocking
+import { v4 as uuidv4 } from "uuid";
 
-  constructor(startId = 0) {
-    this.currentId = startId;
-  }
-
-  generateId(): string {
-    return (++this.currentId).toString();
-  }
-}
-
-// Define a test entity
-@Collection({ name: "id-test-entities" })
-class TestEntity {
-  @ID()
-  id!: string;
+// Define the actual Entity class using flat structure
+@Collection({ name: "test_entities" })
+class TestEntity extends BaseEntity {
+  // id, createdAt, updatedAt, deletedAt inherited
 
   @Field()
   name!: string;
 }
 
-describe("ID Generator Tests", () => {
+describe("Repository ID Generation", () => {
   let adapter: InMemoryAdapter;
 
   beforeEach(async () => {
-    // Create a new adapter for each test
+    // Reset mocks and connection before each test
+    (uuidv4 as jest.Mock).mockClear();
+    if (Stash.isConnected()) {
+      await Stash.disconnect();
+    }
+    // Using default adapter (which should use UUID)
     adapter = new InMemoryAdapter();
     await Stash.connect(adapter);
   });
 
   afterEach(async () => {
-    await Stash.disconnect();
+    if (Stash.isConnected()) {
+      await Stash.disconnect();
+    }
   });
 
-  it("should use UUID v4 by default", async () => {
-    const repository = Stash.getRepository<TestEntity>(TestEntity);
+  it("should use default UUIDv4 from AbstractRepository fallback", async () => {
+    // Get repository with only Entity class
+    const repo = Stash.getRepository(TestEntity);
 
-    // Create an entity without providing an ID
-    const entity = await repository.create({ name: "Test Entity" });
+    // Set a specific return value for the mocked v4
+    const mockUuid = "mock-uuid-12345678";
+    (uuidv4 as jest.Mock).mockReturnValue(mockUuid);
 
-    // UUID v4 format: 8-4-4-4-12 characters (36 total including hyphens)
-    expect(entity.id).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-    );
+    // Create data matches Creatable<TestEntity>
+    const createData: Creatable<TestEntity> = { name: "test-uuid" };
+    const entity = await repo.create(createData);
+
+    expect(uuidv4).toHaveBeenCalledTimes(1);
+    expect(entity.id).toBe(mockUuid);
+    // Access property directly
+    expect(entity.name).toBe("test-uuid");
   });
 
-  it("should use custom ID generator when provided", async () => {
-    // Set a sequential ID generator
-    const sequentialGenerator = new SequentialIdGenerator(1000);
-    adapter.setIdGenerator(sequentialGenerator);
-
-    const repository = Stash.getRepository<TestEntity>(TestEntity);
-
-    // Create entities without providing IDs
-    const entity1 = await repository.create({ name: "Entity 1" });
-    const entity2 = await repository.create({ name: "Entity 2" });
-    const entity3 = await repository.create({ name: "Entity 3" });
-
-    // IDs should be sequential
-    expect(entity1.id).toBe("1001");
-    expect(entity2.id).toBe("1002");
-    expect(entity3.id).toBe("1003");
+  // Add a test for custom ID usage if not present
+  it("should allow custom ID on create", async () => {
+    const repo = Stash.getRepository(TestEntity);
+    const customId = "my-test-custom-id";
+    const entity = await repo.create({ name: "custom-id" }, customId);
+    expect(uuidv4).not.toHaveBeenCalled(); // Should not call uuid generator
+    expect(entity.id).toBe(customId);
+    expect(entity.name).toBe("custom-id");
   });
 
-  it("should respect provided IDs even with custom generator", async () => {
-    // Set a sequential ID generator
-    adapter.setIdGenerator(new SequentialIdGenerator());
+  // Add a test for adapter-provided ID (e.g., sequential)
+  it("should use ID generator from adapter if provided", async () => {
+    await Stash.disconnect(); // Disconnect default adapter
+    const seqAdapter = new InMemoryAdapter({
+      idGenerator: "sequential",
+      sequentialIdPrefix: "item-",
+    });
+    await Stash.connect(seqAdapter);
 
-    const repository = Stash.getRepository<TestEntity>(TestEntity);
+    const repo = Stash.getRepository(TestEntity);
+    const entity1 = await repo.create({ name: "item1" });
+    const entity2 = await repo.create({ name: "item2" });
 
-    // Create entity with a specific ID
-    const customIdEntity = await repository.create(
-      { name: "Custom ID Entity" },
-      "custom-id-123"
-    );
-
-    // The provided ID should be used
-    expect(customIdEntity.id).toBe("custom-id-123");
-
-    // Next auto-generated ID should still use the generator
-    const autoIdEntity = await repository.create({ name: "Auto ID Entity" });
-    expect(autoIdEntity.id).toBe("1"); // First ID from the generator
-  });
-
-  it("should allow changing ID generator at runtime", async () => {
-    const repository = Stash.getRepository<TestEntity>(TestEntity);
-
-    // First entity uses default UUID generator
-    const entity1 = await repository.create({ name: "UUID Entity" });
-    expect(entity1.id).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-    );
-
-    // Change to sequential generator
-    adapter.setIdGenerator(new SequentialIdGenerator());
-
-    // Next entity should use sequential generator
-    const entity2 = await repository.create({ name: "Sequential Entity" });
-    expect(entity2.id).toBe("1");
+    expect(uuidv4).not.toHaveBeenCalled(); // Should not call uuid generator
+    expect(entity1.id).toBe("item-1");
+    expect(entity2.id).toBe("item-2");
   });
 });

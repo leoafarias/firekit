@@ -62,3 +62,4 @@ coverage/
 *.tmp
 *.temp
 .cache/
+datastash/.cursor

@@ -8,10 +8,16 @@
     "esModuleInterop": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
+    "useDefineForClassFields": false,
     "sourceMap": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true
   },
-  "include": ["src"],
-  "exclude": ["node_modules", "**/*.test.ts", "dist"]
+  "ts-node": {
+    "transpileOnly": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  },
+  "include": ["src", "tests", "examples", "*.ts"],
+  "exclude": ["node_modules", "dist"]
 }

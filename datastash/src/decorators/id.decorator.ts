@@ -17,7 +17,10 @@ import { Field } from "./field.decorator";
  * ```
  */
 export function ID(): PropertyDecorator {
-  return function decorateIdField(target: any, propertyKey: string | symbol) {
+  return function decorateIdField(
+    target: object,
+    propertyKey: string | symbol
+  ) {
     // Mark the property as an ID field
     Reflect.defineMetadata(
       ID_FIELD_KEY,
@@ -35,6 +38,9 @@ export function ID(): PropertyDecorator {
  * @param target - The class to get the ID field from
  * @returns The ID field property key or undefined if not found
  */
-export function getIdField(target: any): string | symbol | undefined {
-  return Reflect.getMetadata(ID_FIELD_KEY, target);
+export function getIdField(target: object): string | symbol | undefined {
+  return Reflect.getMetadata(ID_FIELD_KEY, target) as
+    | string
+    | symbol
+    | undefined;
 }

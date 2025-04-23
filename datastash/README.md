@@ -11,46 +11,67 @@ A lightweight, efficient repository pattern implementation for TypeScript with p
 - Clean repository pattern implementation
 - Pluggable database adapters (in-memory, Firestore, file system)
 - Support for CRUD operations and advanced queries
-- Batch operations for atomic updates
-- Decorator-based entity definitions
-- Comprehensive validation support
+- Decorator-based entity definitions (using DTOs)
+- Validation support via class-validator on DTOs
 - Hierarchical data modeling with collections and subcollections
 
 ## Installation
 
 ```bash
-npm install datastash
+npm install datastash reflect-metadata class-transformer class-validator
 ```
+*(Note: `reflect-metadata`, `class-transformer`, and `class-validator` are peer dependencies)*
 
 ## Quick Start
 
 ```typescript
-import { Collection, Field, Stash, InMemoryAdapter } from "datastash";
+import { Collection, Field, Stash, InMemoryAdapter, Entity, ID, CreatedAt, UpdatedAt, ComparisonOperator, SortDirection } from "datastash";
+import { Type } from 'class-transformer';
+import { IsEmail, IsNotEmpty } from 'class-validator';
+import "reflect-metadata"; // Ensure this is imported once at application entry point
 
-// Define your entity
-@Collection({ name: "users" })
-class User {
-  // Standard entity fields are automatically added
-  id!: string;
-  createdAt!: Date;
-  updatedAt!: Date;
-
+// 1. Define your Data Transfer Object (DTO) with validation
+class UserDataDto {
   @Field()
+  @IsNotEmpty()
   name!: string;
 
   @Field()
+  @IsEmail()
   email!: string;
 }
 
-// Connect to a database
-const adapter = new InMemoryAdapter();
+// 2. Define your Entity, implementing Entity<YourDto>
+@Collection({ name: "users" })
+class User implements Entity<UserDataDto> {
+  @ID() // Automatic ID
+  id!: string;
+
+  @CreatedAt() // Automatic timestamp
+  createdAt!: Date;
+
+  @UpdatedAt() // Automatic timestamp
+  updatedAt!: Date;
+
+  deletedAt: Date | null = null; // Standard field for soft deletes
+
+  @Type(() => UserDataDto) // Important for class-transformer
+  @Field() // Mark the data field itself
+  data!: UserDataDto; // Holds the actual data fields
+}
+
+// 3. Connect to a database
+const adapter = new InMemoryAdapter({
+  persistTo: './data.json',  // Save data to file
+  loadFrom: './data.json'    // Load initial data from file
+});
 await Stash.connect(adapter);
 
-// Get a repository
-const userRepo = Stash.getRepository<User>(User);
+// 4. Get a repository (pass both Entity and DTO classes)
+const userRepo = Stash.getRepository(User, UserDataDto);
 
-// CRUD operations
-// Create
+// 5. CRUD operations
+// Create (pass data matching the DTO)
 const user = await userRepo.create({
   name: "John Doe",
   email: "john@example.com",
@@ -58,26 +79,27 @@ const user = await userRepo.create({
 
 // Read
 const foundUser = await userRepo.findById(user.id);
+// Access data via the .data property
+console.log(foundUser?.data.name); // Output: John Doe
 
-// Update
+// Update (pass partial data matching the DTO)
 await userRepo.update(user.id, { name: "Jane Doe" });
+const updatedUser = await userRepo.findById(user.id);
+console.log(updatedUser?.data.name); // Output: Jane Doe
 
 // Delete
 await userRepo.delete(user.id);
 
-// Query operations
+// 6. Query operations (use paths for data fields, use Enums)
 const users = await userRepo
   .query()
-  .where("name", "==", "Jane Doe")
-  .orderBy("email", "asc")
+  .where("data.name", ComparisonOperator.Equals, "Jane Doe") // Use where with path and Enum
+  .orderBy("data.email", SortDirection.Ascending) // Use orderBy with path and Enum
   .limit(10)
-  .getResults();
+  .getResults(); // Use getResults()
 
-// Batch operations
-const batch = userRepo.batch();
-batch.create(User, { name: "User 1", email: "user1@example.com" });
-batch.create(User, { name: "User 2", email: "user2@example.com" });
-await batch.commit();
+// Batch operations removed from Quick Start (API under review)
+
 ```
 
 ## Detailed Usage Guide
@@ -91,26 +113,28 @@ Datastash uses a pluggable adapter system to support different databases. Adapte
 1. **InMemoryAdapter** - For testing and development
    ```typescript
    import { Stash, InMemoryAdapter } from "datastash";
-   
+
    // Simple initialization
    const adapter = new InMemoryAdapter();
    await Stash.connect(adapter);
-   
-   // With persistence options
-   const adapter = new InMemoryAdapter({
-     persistTo: './data.json',  // Save data to file
-     loadFrom: './data.json'    // Load initial data from file
+
+   // With ID generator options
+   const adapterWithSequentialIds = new InMemoryAdapter({
+     idGenerator: 'sequential',
+     sequentialIdPrefix: 'user-' // Optional prefix (default: 'id-')
    });
-   await Stash.connect(adapter);
+   await Stash.connect(adapterWithSequentialIds);
    ```
 
 2. **FileSystemAdapter** - For local JSON storage
    ```typescript
    import { Stash, FileSystemAdapter } from "datastash";
-   
+
    const adapter = new FileSystemAdapter({
-     basePath: './data',  // Directory to store collection files
-     prettyPrint: true    // Format JSON files with indentation
+     baseDir: './data',  // Directory to store collection files (default: './data')
+     idGenerator: 'uuid', // 'uuid' (default), 'sequential', or custom IIdGenerator
+     // sequentialIdPrefix: 'doc-', // Optional prefix if using 'sequential' ID generator
+     prettyPrint: true    // Format JSON files with indentation (default: false)
    });
    await Stash.connect(adapter);
    ```
@@ -119,7 +143,7 @@ Datastash uses a pluggable adapter system to support different databases. Adapte
    ```typescript
    // Disconnect from current adapter
    await Stash.disconnect();
-   
+
    // Connect to a new adapter
    const newAdapter = new FileSystemAdapter({ basePath: './prod-data' });
    await Stash.connect(newAdapter);
@@ -130,24 +154,37 @@ Datastash uses a pluggable adapter system to support different databases. Adapte
 You can create custom adapters by implementing the `IDatabaseAdapter` interface:
 
 ```typescript
-import { IDatabaseAdapter, IRepository } from "datastash";
+import { IDatabaseAdapter, IRepository, Entity, ClassType } from "datastash";
 
 class MyCustomAdapter implements IDatabaseAdapter {
   // Implement required methods
   connect(options?: any): Promise<void> {
     // Setup connection to your database
+    // ...
+    return Promise.resolve();
   }
-  
+
   disconnect(): Promise<void> {
     // Close connection
+    // ...
+    return Promise.resolve();
   }
-  
+
   isConnected(): boolean {
     // Check connection status
+    // ...
+    return false;
   }
-  
-  getRepository<T extends object>(entityClass: any): IRepository<T> {
+
+  // getRepository requires Entity and DTO classes
+  getRepository<T extends Entity<Data>, Data extends object>(
+    entityClass: ClassType<T>,
+    dataDtoClass: ClassType<Data>
+  ): IRepository<T, Data> {
     // Return a repository implementation for this database
+    // You'll likely need specific repository logic here
+    // Example: return new MyCustomRepository(entityClass, dataDtoClass);
+    throw new Error("Method not implemented.");
   }
 }
 
@@ -158,43 +195,64 @@ await Stash.connect(adapter, { /* adapter-specific options */ });
 
 ### Entity Definition and Validation
 
-Datastash fully integrates with class-validator for entity validation.
+Datastash uses DTOs (Data Transfer Objects) to define the structure and validation rules for the main data payload of your entities.
 
-#### Basic Validation
+#### Defining DTOs and Entities
 
 ```typescript
-import { IsEmail, IsNotEmpty, Length } from "class-validator";
-import { Collection, Field } from "datastash";
+import { IsEmail, IsNotEmpty, Length, Min } from "class-validator";
+import { Collection, Field, Entity, ID, CreatedAt, UpdatedAt } from "datastash";
+import { Type } from 'class-transformer';
 
-@Collection({ name: "users" })
-class User {
-  id!: string;
-  createdAt!: Date;
-  updatedAt!: Date;
-  
+// 1. Define the DTO with validation rules
+class UserDataDto {
   @Field()
   @IsNotEmpty()
   @Length(2, 50)
   name!: string;
-  
+
   @Field()
   @IsEmail()
   email!: string;
+
+  @Field()
+  @Min(0)
+  loginCount!: number;
+}
+
+// 2. Define the Entity implementing Entity<YourDto>
+@Collection({ name: "users" })
+class User implements Entity<UserDataDto> {
+  @ID()
+  id!: string;
+  @CreatedAt()
+  createdAt!: Date;
+  @UpdatedAt()
+  updatedAt!: Date;
+  deletedAt: Date | null = null;
+
+  @Type(() => UserDataDto) // Link to DTO
+  @Field()
+  data!: UserDataDto;
 }
 ```
 
 #### Validation in Action
 
-Validation happens automatically when creating or updating entities:
+Validation happens automatically when creating or updating entities using the rules defined in the DTO:
 
 ```typescript
+const userRepo = Stash.getRepository(User, UserDataDto);
+
 // This will throw a validation error
 try {
   await userRepo.create({
-    name: "",  // Fails IsNotEmpty
+    name: "",  // Fails IsNotEmpty & Length
     email: "not-an-email",  // Fails IsEmail
+    loginCount: -1 // Fails Min(0)
   });
 } catch (error) {
+  // error likely contains details about validation failures
   console.error("Validation failed:", error);
 }
 
@@ -202,95 +260,40 @@ try {
 const user = await userRepo.create({
   name: "John Doe",
   email: "john@example.com",
-});
-```
-
-#### Custom Validation Options
-
-You can configure validation behavior by extending the repository:
-
-```typescript
-import { AbstractRepository, Stash } from "datastash";
-
-class CustomUserRepository extends AbstractRepository<User> {
-  async createWithCustomValidation(data: any) {
-    // Override validation options
-    const validatedData = await this.validateData(data, {
-      skipMissingProperties: true,
-      forbidUnknownValues: true,
-      validationError: { target: false }
-    });
-    
-    // Use validated data
-    return super.create(validatedData);
-  }
-}
-
-// Usage
-const customRepo = new CustomUserRepository(User, Stash.getAdapter());
-const user = await customRepo.createWithCustomValidation({ 
-  name: "John" 
-  // email can be skipped with skipMissingProperties: true
+  loginCount: 10
 });
 ```
 
 ### Advanced Querying
 
-Datastash provides a powerful query interface:
+Datastash provides a powerful query interface using a fluent API.
 
 ```typescript
-// Basic queries
+import { ComparisonOperator, SortDirection } from "datastash";
+
+const userRepo = Stash.getRepository(User, UserDataDto);
+
+// Querying nested fields using where and orderBy with paths
 const activeUsers = await userRepo
   .query()
-  .where("status", "==", "active")
+  .where("data.loginCount", ComparisonOperator.GreaterThan, 5) // Use where with path
+  .orderBy("data.name", SortDirection.Ascending) // Use orderBy with path
   .getResults();
 
 // Compound queries
-const recentActiveUsers = await userRepo
+const recentHighLoginUsers = await userRepo
   .query()
-  .where("status", "==", "active")
-  .where("lastLogin", ">", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))
-  .orderBy("lastLogin", "desc")
-  .limit(10)
+  .where("data.loginCount", ComparisonOperator.GreaterThanOrEqual, 100) // Use Enum
+  .orderBy("createdAt", SortDirection.Descending) // Use Enum for metadata field
+  .limit(50)
   .getResults();
 
-// Pagination
-const page1 = await userRepo
+// Querying array fields
+// Assuming UserDataDto has `tags: string[]`
+const taggedUsers = await userRepo
   .query()
-  .orderBy("name", "asc")
-  .limit(20)
+  .where("data.tags", ComparisonOperator.ArrayContains, "admin")
   .getResults();
-
-// Get the next page
-const lastUser = page1[page1.length - 1];
-const page2 = await userRepo
-  .query()
-  .orderBy("name", "asc")
-  .startAfter(lastUser.name)
-  .limit(20)
-  .getResults();
-```
-
-### Batch Operations
-
-For performing multiple operations atomically:
-
-```typescript
-// Create a batch
-const batch = userRepo.batch();
-
-// Queue operations
-batch.create(User, { name: "User 1", email: "user1@example.com" });
-batch.create(User, { name: "User 2", email: "user2@example.com" });
-
-// Update existing entities
-batch.update(User, existingUserId, { status: "inactive" });
-
-// Delete entities
-batch.delete(User, userToDeleteId);
-
-// Execute all operations
-await batch.commit();
 ```
 
 ## Entity Decorators
@@ -306,7 +309,7 @@ class User {
   id!: string; // Automatically configured with @ID()
   createdAt!: Date; // Automatically configured with @CreatedAt()
   updatedAt!: Date; // Automatically configured with @UpdatedAt()
-  
+
   @Field()
   name!: string;
 }
@@ -318,13 +321,13 @@ class Product {
   // but you can explicitly apply them if needed for custom field names
   @ID()
   productId!: string;
-  
+
   @CreatedAt()
   created!: Date;
-  
+
   @UpdatedAt()
   modified!: Date;
-  
+
   @Field()
   title!: string;
 }
@@ -339,7 +342,7 @@ class User {
   id!: string;
   createdAt!: Date;
   updatedAt!: Date;
-  
+
   @Field()
   name!: string;
 }
@@ -354,13 +357,13 @@ class Post {
   id!: string;
   createdAt!: Date;
   updatedAt!: Date;
-  
+
   @Field()
   title!: string;
-  
+
   @Field()
   content!: string;
-  
+
   @Field()
   userId!: string; // Reference to parent
 }
@@ -374,20 +377,20 @@ class Product {
   id!: string;
   createdAt!: Date;
   updatedAt!: Date;
-  
+
   @Field({
     transformer: {
       toDatabaseFormat: (price: number) => price.toString(),
-      fromDatabaseFormat: (value: string | any) => 
+      fromDatabaseFormat: (value: string | any) =>
         typeof value === "string" ? parseFloat(value) : value,
     }
   })
   price!: number;
-  
+
   @Field({
     transformer: {
       toDatabaseFormat: (tags: string[]) => tags.join(","),
-      fromDatabaseFormat: (value: string | any) => 
+      fromDatabaseFormat: (value: string | any) =>
         typeof value === "string" ? value.split(",") : value,
     }
   })

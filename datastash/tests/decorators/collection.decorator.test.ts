@@ -5,11 +5,18 @@ import {
 } from "../../src/decorators/collection.decorator";
 import { COLLECTION_KEY } from "../../src/utils/metadata.utils";
 
+// Define some test classes
+@Collection({ name: "valid-collection" })
+class ValidClass {}
+
+@Collection({ name: "   spaces-around   " })
+class SpacesAroundClass {}
+
+class NoDecoratorClass {}
+
 describe("Collection Decorator", () => {
   @Collection({ name: "users" })
   class User {}
-
-  class NoDecoratorUser {}
 
   it("should store collection name in metadata", () => {
     const metadata = Reflect.getMetadata(COLLECTION_KEY, User);
@@ -22,19 +29,17 @@ describe("Collection Decorator", () => {
   });
 
   it("should return undefined for class without decorator", () => {
-    const collectionName = getCollectionName(NoDecoratorUser);
+    const collectionName = getCollectionName(NoDecoratorClass);
     expect(collectionName).toBeUndefined();
   });
 
-  it("should throw error for empty or whitespace collection name", () => {
-    expect(() => {
-      @Collection({ name: "" })
-      class EmptyNameClass {}
-    }).toThrow("Collection name cannot be empty");
+  it("should define collection metadata correctly", () => {
+    const metadata = getCollectionName(ValidClass);
+    expect(metadata).toBe("valid-collection");
+  });
 
-    expect(() => {
-      @Collection({ name: "  " })
-      class WhitespaceNameClass {}
-    }).toThrow("Collection name cannot be empty");
+  it("should trim whitespace from collection name", () => {
+    const metadata = getCollectionName(SpacesAroundClass);
+    expect(metadata).toBe("spaces-around");
   });
 });

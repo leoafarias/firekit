@@ -1,37 +1,33 @@
-import { ClassType } from "class-transformer-validator";
-import { validate, ValidatorOptions } from "class-validator";
+import { instanceToPlain, plainToInstance } from "class-transformer";
+import { validate } from "class-validator";
 import { v4 as uuidv4 } from "uuid";
 import { getCollectionName } from "../decorators";
 import { getSubcollectionMetadata } from "../decorators/subcollection.decorator";
-import { IBatchProcessor, IQueryBuilder, IRepository } from "../interfaces";
-import {
-  EntityWithData,
-  FieldsOnly,
-  PartialFields,
-} from "../models/entity.model";
-import { FieldMetadata, getFieldsMetadata } from "../utils/metadata.utils";
+import { Creatable, Entity, Updatable } from "../interfaces/entity.interface";
+import { IQueryBuilder } from "../interfaces/query.interface";
+import { IRepository } from "../interfaces/repository.interface";
+import { Stash } from "../stash";
+import { ClassType } from "../utils/class.type";
 
 /**
- * Abstract repository base class implementing the IRepository interface
- * Provides common functionality for all adapter implementations
+ * Abstract repository base class implementing the IRepository interface.
+ * Works directly with Entity types.
  */
-export abstract class AbstractRepository<T extends object>
-  implements IRepository<T>
+export abstract class AbstractRepository<E extends Entity>
+  implements IRepository<E>
 {
-  protected readonly entityClass: ClassType<T>;
+  protected readonly entityClass: ClassType<E>;
   protected readonly collectionName: string;
-  protected readonly fields: FieldMetadata[];
 
   /**
    * Creates a new repository instance
    * @param entityClass - The entity class constructor
-   * @param dbContext - Database context (adapter-specific)
    * @throws Error if the entity class is not properly decorated
    */
-  constructor(entityClass: ClassType<T>, protected readonly dbContext: any) {
+  constructor(entityClass: ClassType<E>) {
     this.entityClass = entityClass;
 
-    // Get collection metadata - check for both direct collection and subcollection
+    // Get collection metadata
     const collectionName = getCollectionName(entityClass);
     const subcollectionMeta = getSubcollectionMetadata(entityClass);
 
@@ -44,54 +40,67 @@ export abstract class AbstractRepository<T extends object>
         `Class ${entityClass.name} is not decorated with @Collection or @Subcollection`
       );
     }
-
-    // Get field metadata
-    this.fields = getFieldsMetadata(entityClass) || [];
   }
 
   /**
-   * Create a new entity
-   * @param data - Entity data
-   * @param id - Optional custom ID (auto-generated if not provided)
-   * @returns Promise that resolves to the created entity
+   * Create a new entity from plain data object
+   * @param data - Data object conforming to Creatable<E> structure (which is E)
+   * @param id - Optional custom ID
+   * @returns Promise resolving to the created entity
    * @throws Error if validation fails
    */
-  async create(data: FieldsOnly<T>, id?: string): Promise<EntityWithData<T>> {
-    // Validate data
-    const validatedData = await this.validateData(data);
+  async create(data: Creatable<E>, id?: string): Promise<E> {
+    // 1. Transform input data to Entity instance
+    // Use entityClass directly, no separate DTO class needed
+    const entityInstance = plainToInstance(this.entityClass, data);
 
-    // Convert entity to database format
-    const dbData = this._toDatabaseFormat(validatedData);
-
-    // Generate ID if not provided
-    let entityId: string;
-    if (id) {
-      entityId = id;
-    } else {
-      // Use adapter's ID generator if available, otherwise fallback to UUID
-      if (
-        this.dbContext.getIdGenerator &&
-        typeof this.dbContext.getIdGenerator === "function"
-      ) {
-        entityId = await this.dbContext.getIdGenerator().generateId();
-      } else {
-        entityId = uuidv4();
-      }
+    // 2. Validate Entity instance
+    // Validation now happens on the whole entity object
+    const errors = await validate(entityInstance);
+    if (errors.length > 0) {
+      throw new Error(`Validation failed: ${JSON.stringify(errors)}`);
     }
 
-    // Call adapter-specific implementation
+    // 3. Convert validated Entity to database format
+    // _toDatabaseFormat now expects the entity instance
+    const dbData = this._toDatabaseFormat(entityInstance);
+
+    // 4. Generate ID (logic remains the same)
+    let entityId = id;
+    if (!entityId) {
+      const adapter = Stash.getAdapter();
+      if (adapter && "getIdGenerator" in adapter) {
+        const generator = adapter.getIdGenerator?.();
+        if (generator) {
+          entityId = await Promise.resolve(generator.generateId());
+        }
+      }
+      entityId ??= uuidv4();
+    }
+
+    // 5. Call adapter-specific save
+    // _save now handles the full entity data (Record<string, unknown>)
     const {
       id: resultId,
       createTime,
       updateTime,
     } = await this._save(entityId, dbData);
 
-    // Convert database data to entity format
+    // 6. Fetch the created data to ensure consistency
+    const savedDbData = await this._findById(resultId);
+    if (!savedDbData) {
+      throw new Error(
+        `Failed to fetch entity with ID ${resultId} after creation.`
+      );
+    }
+
+    // 7. Convert database data back to entity format
+    // _fromDatabaseFormat now reconstructs the full entity E
     return this._fromDatabaseFormat(
-      dbData,
+      savedDbData,
       resultId,
-      createTime || new Date(),
-      updateTime || new Date()
+      createTime,
+      updateTime
     );
   }
 
@@ -100,21 +109,21 @@ export abstract class AbstractRepository<T extends object>
    * @param id - Entity ID
    * @returns Promise resolving to entity or null if not found
    */
-  async findById(id: string): Promise<EntityWithData<T> | null> {
+  // Return type is now Promise<E | null>
+  async findById(id: string): Promise<E | null> {
     if (!id) {
       throw new Error("ID must be provided");
     }
 
-    // Call adapter-specific implementation
+    // _findById returns the raw data for the full entity
     const dbData = await this._findById(id);
-
-    // Return null if not found
     if (!dbData) {
       return null;
     }
 
-    // Convert database data to entity format
+    // Fetch metadata
     const metadata = await this._getMetadata(id);
+    // Reconstruct the full entity E
     return this._fromDatabaseFormat(
       dbData,
       id,
@@ -129,7 +138,8 @@ export abstract class AbstractRepository<T extends object>
    * @returns Promise resolving to the entity
    * @throws Error if entity not found
    */
-  async getById(id: string): Promise<EntityWithData<T>> {
+  // Return type is now Promise<E>
+  async getById(id: string): Promise<E> {
     const entity = await this.findById(id);
     if (!entity) {
       throw new Error(
@@ -140,22 +150,23 @@ export abstract class AbstractRepository<T extends object>
   }
 
   /**
-   * Update an existing entity
+   * Update an existing entity from a data object
    * @param id - Entity ID
-   * @param data - Entity data to update
+   * @param data - Data object conforming to Updatable<E> structure (Partial<E>)
    * @returns Promise resolving to the updated entity
    * @throws Error if entity not found or validation fails
    */
-  async update(id: string, data: PartialFields<T>): Promise<EntityWithData<T>> {
+  // Changed data type from Updatable<Data> to Updatable<E> (Partial<E>)
+  // Return type is now Promise<E>
+  async update(id: string, data: Updatable<E>): Promise<E> {
     if (!id) {
       throw new Error("ID must be provided");
     }
-
     if (!data || Object.keys(data).length === 0) {
       throw new Error("Update data cannot be empty");
     }
 
-    // Check if entity exists
+    // 1. Check if entity exists (logic remains)
     const exists = await this._exists(id);
     if (!exists) {
       throw new Error(
@@ -163,25 +174,41 @@ export abstract class AbstractRepository<T extends object>
       );
     }
 
-    // Convert entity to database format - cast to any to avoid type issues
-    const dbData = this._toDatabaseFormat(data as any);
+    // 2. Transform input data to Entity instance (Partial)
+    // Use entityClass directly
+    const partialEntityInstance = plainToInstance(this.entityClass, data);
 
-    // Call adapter-specific implementation
-    const { updateTime } = await this._update(id, dbData);
-
-    // Get the updated entity
-    const updatedData = await this._findById(id);
-    if (!updatedData) {
-      throw new Error(`Entity with ID ${id} not found after update`);
+    // 3. Validate Partial Entity instance
+    const errors = await validate(partialEntityInstance, {
+      skipMissingProperties: true, // Important for partial updates
+      whitelist: true,
+      // forbidNonWhitelisted: true, // Consider if needed
+    });
+    if (errors.length > 0) {
+      throw new Error(`Validation failed: ${JSON.stringify(errors)}`);
     }
 
-    // Convert database data to entity format
+    // 4. Convert validated partial entity to database format
+    // _toDatabaseFormat now expects Partial<E>
+    const dbData = this._toDatabaseFormat(partialEntityInstance);
+
+    // 5. Call adapter-specific update
+    const { updateTime } = await this._update(id, dbData);
+
+    // 6. Fetch the updated entity data
+    const updatedDbData = await this._findById(id);
+    if (!updatedDbData) {
+      throw new Error(`Entity with ID ${id} not found after update.`);
+    }
+
+    // 7. Convert database data back to entity format
     const metadata = await this._getMetadata(id);
+    // Reconstruct the full entity E
     return this._fromDatabaseFormat(
-      updatedData,
+      updatedDbData,
       id,
       metadata?.createTime,
-      updateTime || new Date()
+      updateTime // Use timestamp from _update result
     );
   }
 
@@ -195,8 +222,7 @@ export abstract class AbstractRepository<T extends object>
     if (!id) {
       throw new Error("ID must be provided");
     }
-
-    // Call adapter-specific implementation
+    // _delete assumes the full entity is targeted
     await this._delete(id);
   }
 
@@ -204,14 +230,16 @@ export abstract class AbstractRepository<T extends object>
    * Find all entities in the collection
    * @returns Promise resolving to array of entities
    */
-  async findAll(): Promise<Array<EntityWithData<T>>> {
-    // Get all entities from the database
+  // Return type is now Promise<E[]>
+  async findAll(): Promise<E[]> {
+    // _findAll returns raw data for all entities
     const results = await this._findAll();
 
-    // Convert database data to entity format
+    // Map results to entities
     return Promise.all(
       results.map(async (result) => {
         const metadata = await this._getMetadata(result.id);
+        // Reconstruct the full entity E
         return this._fromDatabaseFormat(
           result.data,
           result.id,
@@ -226,118 +254,69 @@ export abstract class AbstractRepository<T extends object>
    * Create a query builder for advanced queries
    * @returns Query builder instance
    */
-  abstract query(): IQueryBuilder<EntityWithData<T>>;
+  // Return type is now IQueryBuilder<E>
+  abstract query(): IQueryBuilder<E>;
 
   /**
-   * Create a batch processor for batch operations
-   * @returns Batch processor instance
+   * Convert Entity instance (or partial) to database format (plain object).
+   * Adapters can override this for specific database needs (e.g., Date -> Timestamp).
+   * @param entityInstance - The validated Entity instance (E or Partial<E>)
+   * @returns Database format data (plain object)
    */
-  abstract batch(): IBatchProcessor;
-
-  /**
-   * Convert entity data to database format
-   * @param data - Entity data
-   * @returns Database format data
-   */
-  protected _toDatabaseFormat(data: PartialFields<T>): Record<string, any> {
-    const dbData: Record<string, any> = {};
-
-    this.fields.forEach((field) => {
-      const propKey = field.propertyKey.toString();
-
-      // Only include properties that exist in the data object
-      if (propKey in data) {
-        let value = data[propKey as keyof typeof data];
-
-        // Apply custom transformers
-        if (
-          field.options.transformer &&
-          field.options.transformer.toDatabaseFormat
-        ) {
-          value = field.options.transformer.toDatabaseFormat(value);
-        }
-
-        // Only include defined values in the database format
-        if (value !== undefined) {
-          dbData[propKey] = value;
-        }
-      }
-    });
-
-    return dbData;
+  // Changed parameter name and type
+  protected _toDatabaseFormat(
+    entityInstance: E | Partial<E>
+  ): Record<string, unknown> {
+    // Convert Entity instance to a plain object using class-transformer rules
+    const plain = instanceToPlain(entityInstance);
+    // Adapters might add further transformations (e.g., Date -> Timestamp)
+    return plain;
   }
 
   /**
-   * Convert database data to entity format
-   * @param dbData - Database data
+   * Convert database data (plain object) to an entity instance (E).
+   * @param dbData - Database data (plain object representing the entity)
    * @param id - Entity ID
    * @param createTime - Creation timestamp
    * @param updateTime - Update timestamp
-   * @returns Entity instance
+   * @returns Entity instance (E)
    */
+  // Added back id, createTime, updateTime parameters, changed return type to E
   protected _fromDatabaseFormat(
-    dbData: Record<string, any>,
+    dbData: Record<string, unknown>,
     id: string,
     createTime?: Date,
     updateTime?: Date
-  ): EntityWithData<T> {
-    // Apply transformers to database data
-    const transformedData: Record<string, any> = { ...dbData };
+  ): E {
+    // Adapters might perform initial transformations here (e.g., Timestamp -> Date)
 
-    this.fields.forEach((field) => {
-      const propKey = field.propertyKey.toString();
-      if (propKey in dbData) {
-        let value = dbData[propKey];
+    // Merge dbData with metadata fields before transforming
+    // Ensure metadata fields don't accidentally get overwritten if they also exist in dbData
+    const dataToTransform = {
+      ...dbData,
+      // Explicitly set metadata fields. Handle potential null/undefined from dbData if necessary.
+      id: id,
+      // Only add timestamps if they are provided
+      ...(createTime && { createdAt: createTime }),
+      ...(updateTime && { updatedAt: updateTime }),
+      // Preserve deletedAt if it exists in dbData, otherwise default from Entity might apply
+      ...(dbData.deletedAt !== undefined && { deletedAt: dbData.deletedAt }),
+    };
 
-        // Apply custom transformers
-        if (
-          field.options.transformer &&
-          field.options.transformer.fromDatabaseFormat
-        ) {
-          value = field.options.transformer.fromDatabaseFormat(value);
-        }
-
-        transformedData[propKey] = value;
-      }
+    // Transform plain data (including metadata) to the Entity instance
+    const entityInstance = plainToInstance(this.entityClass, dataToTransform, {
+      // excludeExtraneousValues: true, // Enable if using @Expose exclusively
     });
 
-    // Create a proper instance of the entity class with the transformed data
-    const entityInstance = Object.assign(
-      new this.entityClass(),
-      transformedData
-    );
-
-    // Add entity metadata
-    return Object.assign(entityInstance, {
-      id,
-      createdAt: createTime || new Date(),
-      updatedAt: updateTime || new Date(),
-    });
-  }
-
-  /**
-   * Validate entity data
-   * @param data - Entity data to validate
-   * @param options - Validation options
-   * @returns Validated data
-   * @throws Error if validation fails
-   */
-  protected async validateData(
-    data: any,
-    options: ValidatorOptions = {
-      skipMissingProperties: true,
-      forbidUnknownValues: false,
-    }
-  ): Promise<any> {
-    // Create instance of entity class with the data
-    const entityInstance = Object.assign(new this.entityClass(), data);
-
-    // Validate the instance
-    const errors = await validate(entityInstance, options);
-
-    if (errors.length > 0) {
-      throw new Error(`Validation failed: ${JSON.stringify(errors)}`);
-    }
+    // Ensure essential metadata is correctly assigned if not handled by plainToInstance
+    // (e.g., if metadata fields are not decorated with @Field or similar)
+    if (!entityInstance.id) entityInstance.id = id;
+    if (createTime && !entityInstance.createdAt)
+      entityInstance.createdAt = createTime;
+    if (updateTime && !entityInstance.updatedAt)
+      entityInstance.updatedAt = updateTime;
+    // deletedAt handling depends on whether it's part of the main dbData structure
+    // If not explicitly set, it might default to null based on Entity definition
 
     return entityInstance;
   }
@@ -348,61 +327,69 @@ export abstract class AbstractRepository<T extends object>
    * @returns Promise resolving to true if entity exists, false otherwise
    */
   protected async _exists(id: string): Promise<boolean> {
+    // _findById returns the raw data for the full entity
     const data = await this._findById(id);
     return !!data;
   }
 
   /**
-   * Get entity metadata
+   * Get entity metadata (timestamps)
+   * Adapters MUST implement this if they don't store metadata alongside main data.
    * @param id - Entity ID
    * @returns Promise resolving to entity metadata or undefined if not found
    */
-  protected async _getMetadata(
+  protected abstract _getMetadata(
     id: string
-  ): Promise<{ createTime?: Date; updateTime?: Date } | undefined> {
-    // By default, return undefined - adapters can override to provide actual metadata
-    return undefined;
-  }
+  ): Promise<{ createTime?: Date; updateTime?: Date } | undefined>;
+
+  // --- Abstract methods for adapter implementation ---
+  // These methods now deal with Record<string, unknown> representing the *entire* entity data
 
   /**
-   * Find all entities in the collection
-   * @returns Promise resolving to array of entities with their IDs
+   * Find all entities in the collection (adapter implementation).
+   * Should return raw data for each entity.
+   * @returns Promise resolving to array of raw entity data with IDs
    */
   protected abstract _findAll(): Promise<
-    Array<{ id: string; data: Record<string, any> }>
+    { id: string; data: Record<string, unknown> }[]
   >;
 
   /**
-   * Save an entity to the database
-   * @param id - Entity ID
-   * @param data - Entity data
+   * Save an entity to the database (adapter implementation).
+   * Should handle storing the full entity data.
+   * @param id - Entity ID to use
+   * @param data - Raw entity data (Record<string, unknown>)
    * @returns Promise resolving to the saved entity ID and timestamps
    */
   protected abstract _save(
-    id: string | null,
-    data: Record<string, any>
+    id: string,
+    data: Record<string, unknown>
   ): Promise<{ id: string; createTime?: Date; updateTime?: Date }>;
 
   /**
-   * Find an entity by ID
+   * Find an entity by ID (adapter implementation).
+   * Should return the raw data for the entity.
    * @param id - Entity ID
-   * @returns Promise resolving to entity data or null if not found
+   * @returns Promise resolving to raw entity data or null if not found
    */
-  protected abstract _findById(id: string): Promise<Record<string, any> | null>;
+  protected abstract _findById(
+    id: string
+  ): Promise<Record<string, unknown> | null>;
 
   /**
-   * Update an entity
+   * Update an entity (adapter implementation).
+   * Should handle updating parts of the raw entity data.
    * @param id - Entity ID
-   * @param data - Entity data to update
-   * @returns Promise resolving to update timestamp
+   * @param data - Raw partial entity data to update (Record<string, unknown>)
+   * @returns Promise resolving to the effective update timestamp
    */
   protected abstract _update(
     id: string,
-    data: Record<string, any>
+    data: Record<string, unknown>
   ): Promise<{ updateTime?: Date }>;
 
   /**
-   * Delete an entity
+   * Delete an entity (adapter implementation).
    * @param id - Entity ID
    * @returns Promise resolving when entity is deleted
    */

@@ -26,7 +26,7 @@ import { addFieldMetadata, FieldOptions } from "../utils/metadata.utils";
  * ```
  */
 export function Field(options: FieldOptions = {}): PropertyDecorator {
-  return function decorateField(target: any, propertyKey: string | symbol) {
+  return function decorateField(target: object, propertyKey: string | symbol) {
     // Handle both old-style decorators and new TypeScript 5.0+ decorators
     const constructor =
       typeof target === "function"

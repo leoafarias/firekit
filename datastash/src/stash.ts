@@ -1,4 +1,7 @@
-import { IDatabaseAdapter, IRepository } from "./interfaces";
+import { IDatabaseAdapter } from "./interfaces/adapter.interface";
+import { Entity } from "./interfaces/entity.interface";
+import { IRepository } from "./interfaces/repository.interface";
+import { ClassType } from "./utils/class.type";
 
 /**
  * Main entry point for the Stash library
@@ -15,7 +18,7 @@ export class Stash {
    */
   public static async connect(
     adapter: IDatabaseAdapter,
-    options?: any
+    options?: unknown
   ): Promise<void> {
     if (this.adapter) {
       throw new Error("Stash is already connected to an adapter");
@@ -57,13 +60,14 @@ export class Stash {
   }
 
   /**
-   * Get a repository for the specified entity class
-   * @param entityClass - Entity class
-   * @returns Repository for the entity
-   * @throws Error if not connected
+   * Get a repository for the specified entity and associated DTO class.
+   * @param entityClass - The main entity class (e.g., User).
+   * @param dataDtoClass - The DTO class for the entity's data part (e.g., UserDataDto).
+   * @returns Repository for the entity.
+   * @throws Error if not connected or entityClass/dataDtoClass is invalid.
    */
-  public static getRepository<T extends object>(
-    entityClass: any
+  public static getRepository<T extends Entity>(
+    entityClass: ClassType<T>
   ): IRepository<T> {
     if (!this.adapter) {
       throw new Error(

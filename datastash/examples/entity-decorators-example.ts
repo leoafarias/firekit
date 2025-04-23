@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * ENTITY DECORATOR PATTERN EXPLAINED
  *
@@ -29,14 +28,15 @@
 
 import { IsEmail, IsString, Length, MinLength } from "class-validator";
 import "reflect-metadata";
-import { InMemoryAdapter, Stash } from "../src";
+import { ComparisonOperator, InMemoryAdapter, Stash } from "../src";
 import { Collection, Field, Subcollection } from "../src/decorators";
+import { BaseEntity } from "../src/entities/base.entity";
 
 /**
  * Example of a main entity using @Collection
  */
 @Collection({ name: "users" })
-class User {
+class User extends BaseEntity {
   // These properties are declared for type-checking
   // The @Collection decorator automatically applies the appropriate decorators
   id!: string;
@@ -52,19 +52,7 @@ class User {
   @IsEmail()
   email!: string;
 
-  @Field({
-    transformer: {
-      toDatabaseFormat: (roles: string[]) => (roles ? roles.join(",") : ""),
-      fromDatabaseFormat: (value: string | any) =>
-        typeof value === "string"
-          ? value
-            ? value.split(",")
-            : []
-          : Array.isArray(value)
-          ? value
-          : [],
-    },
-  })
+  @Field()
   roles!: string[];
 }
 
@@ -76,7 +64,7 @@ class User {
   parent: User,
   parentField: "userId",
 })
-class Post {
+class Post extends BaseEntity {
   // These properties are declared for type-checking
   // The @Subcollection decorator automatically applies the appropriate decorators
   id!: string;
@@ -106,7 +94,7 @@ class Post {
   parent: Post,
   parentField: "postId",
 })
-class Comment {
+class Comment extends BaseEntity {
   id!: string;
   createdAt!: Date;
   updatedAt!: Date;
@@ -167,7 +155,7 @@ async function demoUsage() {
   // Query all posts by this user
   const userPosts = await postRepo
     .query()
-    .where("userId", "==", user.id)
+    .where("userId", ComparisonOperator.Equals, user.id)
     .getResults();
 
   console.log(`Found ${userPosts.length} posts by user ${user.name}`);
@@ -175,7 +163,7 @@ async function demoUsage() {
   // Query all comments on this post
   const postComments = await commentRepo
     .query()
-    .where("postId", "==", post.id)
+    .where("postId", ComparisonOperator.Equals, post.id)
     .getResults();
 
   console.log(`Found ${postComments.length} comments on post "${post.title}"`);

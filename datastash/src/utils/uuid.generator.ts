@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import { IIdGenerator } from "../../interfaces/id-generator.interface";
+import type { IIdGenerator } from "../interfaces/id-generator.interface";
 
 /**
  * UUID v4 ID generator implementation
