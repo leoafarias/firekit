@@ -1,5 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
+import { Ref } from "../../interfaces/entity.interface";
 import {
   ComparisonOperator,
   IQueryBuilder,
@@ -32,9 +33,7 @@ interface RawFileSystemStorageEntry {
  * File system query builder implementation.
  * Allows querying and filtering JSON files stored in a directory.
  */
-export class FileSystemQueryBuilder<T extends object>
-  implements IQueryBuilder<T>
-{
+export class FileSystemQueryBuilder<T> implements IQueryBuilder<T> {
   protected options: QueryOptions = {
     conditions: [],
     skip: 0,
@@ -52,12 +51,7 @@ export class FileSystemQueryBuilder<T extends object>
   constructor(
     protected collection: string,
     private collectionDir: string,
-    private transformer: (
-      dbData: Record<string, unknown>,
-      id: string,
-      createTime?: Date,
-      updateTime?: Date
-    ) => T,
+    private transformer: (dbData: Record<string, unknown>) => T,
     options?: Partial<QueryOptions>
   ) {
     this.options = { ...this.options, ...options };
@@ -148,13 +142,23 @@ export class FileSystemQueryBuilder<T extends object>
   /**
    * Execute the query and return all matching entities
    */
-  async getResults(): Promise<T[]> {
+  async getResults(): Promise<Ref<T>[]> {
     const results = await this.executeQuery();
 
-    // Transform entries to entities
-    return results.map((entry) =>
-      this.transformer(entry.data, entry.id, entry.createTime, entry.updateTime)
-    );
+    // Transform entries to Ref<T> objects
+    return results.map((entry) => {
+      // Transform the entity data to domain entity
+      const domainEntity = this.transformer(entry.data);
+
+      // Return as Ref<T>
+      return {
+        id: entry.id,
+        createdAt: entry.createTime,
+        updatedAt: entry.updateTime,
+        deletedAt: null,
+        data: domainEntity,
+      };
+    });
   }
 
   /**

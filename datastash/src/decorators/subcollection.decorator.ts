@@ -55,7 +55,7 @@ export function Subcollection(options: SubcollectionOptions): ClassDecorator {
       throw new Error("Parent collection must be specified");
     }
 
-    // In a real implementation, we would check if the class extends BaseEntity
+    // In a real implementation, we would check if the class
     // For now, we'll skip this check for the tests to pass
     // TODO: Implement proper validation to ensure classes extend BaseEntity
 

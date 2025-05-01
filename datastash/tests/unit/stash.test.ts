@@ -1,79 +1,25 @@
 import "reflect-metadata";
 import { InMemoryAdapter } from "../../src/adapters/memory/memory.adapter";
+import { InMemoryRepository } from "../../src/adapters/memory/memory.repository";
 import { Collection } from "../../src/decorators";
-import { BaseEntity } from "../../src/entities/base.entity";
 import { IDatabaseAdapter } from "../../src/interfaces/adapter.interface";
-import {
-  Creatable,
-  Entity,
-  Updatable,
-} from "../../src/interfaces/entity.interface";
-import { IQueryBuilder } from "../../src/interfaces/query.interface";
 import { IRepository } from "../../src/interfaces/repository.interface";
 import { Stash } from "../../src/stash";
 import { ClassType } from "../../src/utils/class.type";
 
-// Define a simple DTO for the Data part
-class TestDataDto {
-  name!: string;
-}
-
 /**
- * Mock entity for testing - needs to implement Entity<Data>
+ * Mock entity for testing
  */
 @Collection({ name: "test-entities" })
-class TestEntity extends BaseEntity {
-  data!: TestDataDto;
+class TestEntity {
+  name!: string;
 }
 
 /**
  * Mock repository for testing
  */
-class MockRepository<T extends Entity> implements IRepository<T> {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  findById(id: string): Promise<T | null> {
-    return Promise.resolve(null);
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getById(id: string): Promise<T> {
-    return Promise.resolve({} as T);
-  }
-
-  findAll(): Promise<T[]> {
-    return Promise.resolve([]);
-  }
-
-  create(data: Creatable<T>, id?: string): Promise<T> {
-    return Promise.resolve({
-      id: id ?? "mock-create-id",
-      data,
-      // Ensure other required Entity props are present if needed by consumers
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
-    } as unknown as T);
-  }
-
-  update(id: string, data: Updatable<T>): Promise<T> {
-    return Promise.resolve({
-      id, // id is used here
-      data,
-      // Ensure other required Entity props are present
-      createdAt: new Date(), // Example date
-      updatedAt: new Date(),
-      deletedAt: null,
-    } as unknown as T);
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  delete(id: string): Promise<void> {
-    return Promise.resolve();
-  }
-
-  query(): IQueryBuilder<T> {
-    throw new Error("Mock query not implemented");
-  }
+class MockRepository<T> extends InMemoryRepository<T> {
+  // Override any methods as needed for testing
 }
 
 /**
@@ -115,11 +61,8 @@ class MockAdapter implements IDatabaseAdapter {
     return this.isConnectedFlag;
   }
 
-  getRepository<T extends Entity>(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    entityClass: ClassType<T>
-  ): IRepository<T> {
-    return new MockRepository<T>();
+  getRepository<T>(entityClass: ClassType<T>): IRepository<T> {
+    return new MockRepository<T>(entityClass);
   }
 
   simulateConnectionError(flag = true): void {
@@ -133,13 +76,8 @@ class MockAdapter implements IDatabaseAdapter {
 
 // Real adapter test entity definition
 @Collection({ name: "real-test-entities" })
-class RealTestDataDto {
+class RealTestEntity {
   name!: string;
-}
-
-@Collection({ name: "real-test-entities" })
-class RealTestEntity extends BaseEntity {
-  data!: RealTestDataDto;
 }
 
 describe("Stash", () => {
@@ -294,24 +232,10 @@ describe("Stash", () => {
     await Stash.connect(mockAdapter);
     expect(Stash.isConnected()).toBe(true);
 
-    class TestEntity extends BaseEntity {
-      id = "";
-      createdAt = new Date();
-      updatedAt = new Date();
-      deletedAt = null;
-      data = {} as TestData;
-      entityType = "test";
-
-      toDomain(): this {
-        return this;
-      }
-
-      toDto(): TestData {
-        return this.data;
-      }
+    @Collection({ name: "test-entities" })
+    class TestEntity {
+      name!: string;
     }
-
-    class TestData {}
 
     const repository = Stash.getRepository(TestEntity);
     expect(repository).toBeInstanceOf(MockRepository);
@@ -323,24 +247,10 @@ describe("Stash", () => {
     // Don't try to disconnect as it will throw if already disconnected
     expect(Stash.isConnected()).toBe(false);
 
-    class TestEntity extends BaseEntity {
-      id = "";
-      createdAt = new Date();
-      updatedAt = new Date();
-      deletedAt = null;
-      data = {} as TestData;
-      entityType = "test";
-
-      toDomain(): this {
-        return this;
-      }
-
-      toDto(): TestData {
-        return this.data;
-      }
+    @Collection({ name: "test-entities" })
+    class TestEntity {
+      name!: string;
     }
-
-    class TestData {}
 
     expect(() => Stash.getRepository(TestEntity)).toThrow(
       "Stash is not connected to an adapter"

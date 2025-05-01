@@ -2,20 +2,16 @@ import { performance } from "perf_hooks";
 import "reflect-metadata";
 import { Stash } from "../src";
 import { InMemoryAdapter } from "../src/adapters/memory/memory.adapter";
-import { Collection, CreatedAt, Field, ID, UpdatedAt } from "../src/decorators";
-import { BaseEntity } from "../src/entities/base.entity";
+import { Collection, Field } from "../src/decorators";
 import { Creatable } from "../src/interfaces/entity.interface";
 import {
   ComparisonOperator,
   SortDirection,
 } from "../src/interfaces/query.interface";
 
-// Define a test entity class - removed DTO
+// Define a test entity class
 @Collection({ name: "performance-test-items" })
-class TestItem extends BaseEntity {
-  @ID()
-  id!: string;
-
+class TestItem {
   @Field()
   name!: string;
 
@@ -28,40 +24,19 @@ class TestItem extends BaseEntity {
   @Field()
   isActive!: boolean;
 
-  // Keep createdAt as number for performance test data, but ensure it maps to Date internally if needed
-  // Or adjust data creation to use Date objects if BaseEntity requires it.
-  // Assuming BaseEntity handles the Date conversion or the tests don't rely on it being Date type here.
+  // Keep createdAt as number for performance test data
   @Field()
   testCreatedAt!: number; // Renamed to avoid collision with BaseEntity's createdAt
-
-  @CreatedAt()
-  createdAt!: Date;
-
-  @UpdatedAt()
-  updatedAt!: Date;
-
-  deletedAt: Date | null = null;
 }
 
-// Define a test entity with transformations - removed DTO
+// Define a test entity with transformations
 @Collection({ name: "transform-test-items" })
-class TransformItem extends BaseEntity {
-  @ID()
-  id!: string;
-
+class TransformItem {
   @Field()
   name!: string;
 
   @Field()
   tags!: string[];
-
-  @CreatedAt()
-  createdAt!: Date;
-
-  @UpdatedAt()
-  updatedAt!: Date;
-
-  deletedAt: Date | null = null;
 }
 
 describe("Stash Performance Tests", () => {
@@ -85,14 +60,14 @@ describe("Stash Performance Tests", () => {
   };
   */
 
-  // Helper to create random test data conforming to the flattened entity structure
+  // Helper to create random test data
   const createTestItemData = (index: number): Creatable<TestItem> => {
     return {
       name: `Test Item ${index}`,
       value: Math.random() * 1000,
       tags: [`tag-${index % 10}`, `category-${index % 5}`],
       isActive: index % 2 === 0,
-      testCreatedAt: Date.now() - index * 1000, // Use renamed field
+      testCreatedAt: Date.now() - index * 1000,
     };
   };
 
@@ -174,7 +149,7 @@ describe("Stash Performance Tests", () => {
     let startTime = performance.now();
     const arrayResults = await repository
       .query()
-      .where("tags", ComparisonOperator.ArrayContains, "category-2") // Use direct field name
+      .where("data.tags", ComparisonOperator.ArrayContains, "category-2")
       .getResults();
     let endTime = performance.now();
 
@@ -187,9 +162,9 @@ describe("Stash Performance Tests", () => {
     startTime = performance.now(); // Declare startTime here
     const complexResults = await repository
       .query()
-      .where("isActive", ComparisonOperator.Equals, true)
-      .where("value", ComparisonOperator.GreaterThan, 200)
-      .orderBy("testCreatedAt", SortDirection.Descending) // Use renamed field
+      .where("data.isActive", ComparisonOperator.Equals, true)
+      .where("data.value", ComparisonOperator.GreaterThan, 200)
+      .orderBy("data.testCreatedAt", SortDirection.Descending)
       .limit(20)
       .getResults();
     endTime = performance.now(); // Declare endTime here
@@ -329,9 +304,9 @@ describe("Stash Performance Tests", () => {
 
     console.log(`Read with transformations: ${endReadTime - startReadTime}ms`);
 
-    // Verify transformations worked correctly - access direct field
+    // Verify transformations worked correctly
     expect(retrievedItem).not.toBeNull();
-    expect(retrievedItem?.tags).toEqual(tagsArray); // Access direct field
+    expect(retrievedItem?.data.tags).toEqual(tagsArray);
   });
 });
 

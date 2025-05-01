@@ -1,4 +1,3 @@
-import { Entity } from "../../interfaces/entity.interface";
 import { IQueryBuilder } from "../../interfaces/query.interface";
 import { AbstractRepository } from "../../repository/base.repository";
 import { ClassType } from "../../utils/class.type";
@@ -16,10 +15,7 @@ interface InMemoryStorageEntry {
  * In-memory repository implementation.
  * Stores entities in a Map.
  */
-// Updated signature: Removed Data generic, extends AbstractRepository<T>
-export class InMemoryRepository<
-  T extends Entity
-> extends AbstractRepository<T> {
+export class InMemoryRepository<T> extends AbstractRepository<T> {
   // In-memory storage using the new entry structure
   protected storage = new Map<string, InMemoryStorageEntry>();
 
@@ -144,6 +140,6 @@ export class InMemoryRepository<
       this.collectionName,
       this.storage, // Pass the storage map (QueryBuilder needs update)
       this._fromDatabaseFormat.bind(this) // Pass the correct transformer
-    );
+    ) as IQueryBuilder<T>;
   }
 }

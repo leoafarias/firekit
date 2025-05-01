@@ -1,5 +1,4 @@
 import { IDatabaseAdapter } from "./interfaces/adapter.interface";
-import { Entity } from "./interfaces/entity.interface";
 import { IRepository } from "./interfaces/repository.interface";
 import { ClassType } from "./utils/class.type";
 
@@ -60,15 +59,12 @@ export class Stash {
   }
 
   /**
-   * Get a repository for the specified entity and associated DTO class.
-   * @param entityClass - The main entity class (e.g., User).
-   * @param dataDtoClass - The DTO class for the entity's data part (e.g., UserDataDto).
-   * @returns Repository for the entity.
-   * @throws Error if not connected or entityClass/dataDtoClass is invalid.
+   * Get a repository for the specified domain entity class.
+   * @param entityClass - The domain entity class (e.g., User).
+   * @returns Repository for the domain entity.
+   * @throws Error if not connected or entityClass is invalid.
    */
-  public static getRepository<T extends Entity>(
-    entityClass: ClassType<T>
-  ): IRepository<T> {
+  public static getRepository<T>(entityClass: ClassType<T>): IRepository<T> {
     if (!this.adapter) {
       throw new Error(
         "Stash is not connected to an adapter. Call Stash.connect() first."

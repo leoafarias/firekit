@@ -3,7 +3,7 @@ import "reflect-metadata";
 import { Stash } from "../src";
 import { InMemoryAdapter } from "../src/adapters/memory/memory.adapter";
 import { Collection, Field } from "../src/decorators";
-import { BaseEntity } from "../src/entities/base.entity";
+
 import { Creatable } from "../src/interfaces/entity.interface";
 import {
   ComparisonOperator,
@@ -12,7 +12,7 @@ import {
 
 // Define User Entity using flat structure
 @Collection({ name: "users" })
-class User extends BaseEntity {
+class User {
   @Field()
   @IsString()
   @IsNotEmpty()
@@ -63,36 +63,38 @@ describe("Stash Integration Tests", () => {
         roles: ["user", "admin"],
         loginCount: 0,
       };
-      const user = await userRepo.create(createData);
+      const userRef = await userRepo.create(createData);
 
       // Verify user was created with correct data and metadata
-      expect(user.id).toBeDefined();
+      expect(userRef.id).toBeDefined();
       // Access directly
-      expect(user.name).toBe("John Doe");
-      expect(user.email).toBe("john@example.com");
-      expect(user.roles).toEqual(["user", "admin"]);
-      expect(user.createdAt).toBeInstanceOf(Date);
-      expect(user.updatedAt).toBeInstanceOf(Date);
+      expect(userRef.data.name).toBe("John Doe");
+      expect(userRef.data.email).toBe("john@example.com");
+      expect(userRef.data.roles).toEqual(["user", "admin"]);
+      expect(userRef.createdAt).toBeInstanceOf(Date);
+      expect(userRef.updatedAt).toBeInstanceOf(Date);
 
       // Read user by ID
-      const foundUser = await userRepo.findById(user.id);
+      const foundUser = await userRepo.findById(userRef.id);
       expect(foundUser).not.toBeNull();
-      expect(foundUser?.name).toBe("John Doe");
+      expect(foundUser?.data?.name).toBe("John Doe");
 
       // Update user (data is Partial<User>)
-      const updatedUser = await userRepo.update(user.id, { name: "Jane Doe" });
-      expect(updatedUser.name).toBe("Jane Doe");
-      expect(updatedUser.email).toBe("john@example.com"); // Unchanged field
+      const updatedUserRef = await userRepo.update(userRef.id, {
+        name: "Jane Doe",
+      });
+      expect(updatedUserRef.data.name).toBe("Jane Doe");
+      expect(updatedUserRef.data.email).toBe("john@example.com"); // Unchanged field
 
       // Ensure update didn't affect other properties
-      expect(updatedUser.roles).toEqual(["user", "admin"]);
-      expect(updatedUser.updatedAt.getTime()).toBeGreaterThanOrEqual(
-        user.updatedAt.getTime()
+      expect(updatedUserRef.data.roles).toEqual(["user", "admin"]);
+      expect(updatedUserRef.updatedAt.getTime()).toBeGreaterThanOrEqual(
+        userRef.updatedAt.getTime()
       );
 
       // Delete user
-      await userRepo.delete(user.id);
-      const deletedUser = await userRepo.findById(user.id);
+      await userRepo.delete(userRef.id);
+      const deletedUser = await userRepo.findById(userRef.id);
       expect(deletedUser).toBeNull();
     });
 
@@ -153,10 +155,10 @@ describe("Stash Integration Tests", () => {
         .getResults();
 
       expect(results.length).toBe(2);
-      expect(results[0].name).toBe("Bob"); // Bob (15) comes before Charlie (10)
-      expect(results[1].name).toBe("Charlie");
-      expect(results[0].loginCount).toBe(15);
-      expect(results[1].loginCount).toBe(10);
+      expect(results[0].data.name).toBe("Bob"); // Bob (15) comes before Charlie (10)
+      expect(results[1].data.name).toBe("Charlie");
+      expect(results[0].data.loginCount).toBe(15);
+      expect(results[1].data.loginCount).toBe(10);
 
       // Test ArrayContains using where
       const adminUsers = await userRepo
@@ -165,7 +167,7 @@ describe("Stash Integration Tests", () => {
         .getResults();
 
       expect(adminUsers.length).toBe(1);
-      expect(adminUsers[0].name).toBe("Bob");
+      expect(adminUsers[0].data.name).toBe("Bob");
     });
 
     // Test complex query with limit/skip
@@ -185,8 +187,8 @@ describe("Stash Integration Tests", () => {
       // Skip 1 leaves: Bob (15)
       // Limit 1 takes: Bob (15)
       expect(results).toHaveLength(1);
-      expect(results[0].name).toBe("Bob");
-      expect(results[0].loginCount).toBe(15);
+      expect(results[0].data.name).toBe("Bob");
+      expect(results[0].data.loginCount).toBe(15);
     });
   });
 

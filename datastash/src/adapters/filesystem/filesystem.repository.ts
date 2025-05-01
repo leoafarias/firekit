@@ -1,6 +1,5 @@
 import fs from "fs/promises";
 import path from "path";
-import { Entity } from "../../interfaces/entity.interface";
 import { IQueryBuilder } from "../../interfaces/query.interface";
 import { AbstractRepository } from "../../repository/base.repository";
 import { ClassType } from "../../utils/class.type";
@@ -30,16 +29,13 @@ interface RawFileSystemStorageEntry {
  * File system repository implementation.
  * Stores entities as JSON files in a directory.
  */
-export class FileSystemRepository<
-  T extends Entity
-> extends AbstractRepository<T> {
+export class FileSystemRepository<T> extends AbstractRepository<T> {
   private collectionDir: string;
   private prettyPrint: boolean;
 
   /**
    * Creates a new file system repository
-   * @param entityClass - Entity class constructor
-   * @param dataDtoClass - Data DTO class constructor
+   * @param entityClass - Domain entity class constructor
    * @param collectionDir - Directory path for this collection
    * @param prettyPrint - Whether to pretty-print JSON files
    */
@@ -66,7 +62,7 @@ export class FileSystemRepository<
       this.collectionName,
       this.collectionDir,
       this._fromDatabaseFormat.bind(this)
-    );
+    ) as IQueryBuilder<T>;
   }
 
   // --- Implementation of Abstract Methods ---

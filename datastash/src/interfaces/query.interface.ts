@@ -1,4 +1,5 @@
 import { Get } from "type-fest";
+import { Ref } from "./entity.interface";
 
 /**
  * Helper type to get the type of a value at a specific path
@@ -165,7 +166,7 @@ export interface IQueryBuilder<T> {
 
   /**
    * Execute the query and return all matching entities.
-   * @returns Promise resolving to an array of entities.
+   * @returns Promise resolving to an array of reference objects containing domain entities.
    */
-  getResults(): Promise<T[]>;
+  getResults(): Promise<Ref<T>[]>;
 }

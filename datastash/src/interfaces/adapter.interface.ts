@@ -1,5 +1,4 @@
 import { ClassType } from "../utils/class.type";
-import { Entity } from "./entity.interface";
 import { IIdGenerator } from "./id-generator.interface";
 import { IRepository } from "./repository.interface";
 
@@ -25,12 +24,12 @@ export interface IDatabaseAdapter {
   isConnected(): boolean;
 
   /**
-   * Get a repository instance for a specific entity type.
+   * Get a repository instance for a specific domain entity type.
    * Adapters are responsible for creating and managing repository instances.
-   * @param entityClass - The main entity class.
-   * @returns An instance of IRepository for the given entity.
+   * @param entityClass - The domain entity class.
+   * @returns An instance of IRepository for the given domain entity.
    */
-  getRepository<T extends Entity>(entityClass: ClassType<T>): IRepository<T>;
+  getRepository<T>(entityClass: ClassType<T>): IRepository<T>;
 
   /**
    * Optional: Get an ID generator specific to this adapter.

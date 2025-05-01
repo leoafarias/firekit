@@ -1,3 +1,4 @@
+import { Ref } from "../../interfaces/entity.interface";
 import {
   ComparisonOperator,
   IQueryBuilder,
@@ -18,9 +19,7 @@ interface InMemoryStorageEntry {
  * In-memory query builder implementation.
  * Allows querying and filtering in-memory data stored in a Map.
  */
-export class InMemoryQueryBuilder<T extends object>
-  implements IQueryBuilder<T>
-{
+export class InMemoryQueryBuilder<T> implements IQueryBuilder<T> {
   // Keep QueryOptions internal
   protected options: QueryOptions = {
     conditions: [],
@@ -39,12 +38,7 @@ export class InMemoryQueryBuilder<T extends object>
   constructor(
     protected collection: string,
     private storage: ReadonlyMap<string, InMemoryStorageEntry>,
-    private transformer: (
-      dbData: Record<string, unknown>,
-      id: string,
-      createTime?: Date,
-      updateTime?: Date
-    ) => T,
+    private transformer: (dbData: Record<string, unknown>) => T,
     options?: Partial<QueryOptions>
   ) {
     // Initialize options directly
@@ -97,8 +91,6 @@ export class InMemoryQueryBuilder<T extends object>
     return clone;
   }
 
-  // orderByPath method removed (deprecated)
-
   async count(): Promise<number> {
     let count = 0;
     for (const entry of this.storage.values()) {
@@ -127,17 +119,22 @@ export class InMemoryQueryBuilder<T extends object>
     );
   }
 
-  async getResults(): Promise<T[]> {
+  async getResults(): Promise<Ref<T>[]> {
     const results = this.executeQuery();
     // Transform final results using the stored transformer
-    const transformedResults = results.map((entry) =>
-      this.transformer(
-        entry.entityData, // Pass entityData to transformer
-        entry.id,
-        entry.createTime,
-        entry.updateTime
-      )
-    );
+    const transformedResults = results.map((entry) => {
+      // Transform the entity data to domain entity
+      const domainEntity = this.transformer(entry.entityData);
+
+      // Return as Ref<T>
+      return {
+        id: entry.id,
+        createdAt: entry.createTime,
+        updatedAt: entry.updateTime,
+        deletedAt: null,
+        data: domainEntity,
+      };
+    });
     return Promise.resolve(transformedResults);
   }
 
@@ -282,7 +279,7 @@ export class InMemoryQueryBuilder<T extends object>
   /**
    * Safely gets a value from an object using a dot-notation path.
    * @param target The object to extract the value from (now expecting entityData).
-   * @param path The dot-notation path string (e.g., "name", "address.city").
+   * @param path The dot-notation path string (e.g., "data.name", "data.address.city").
    * @returns The value found at the path, or undefined.
    */
   private _getInMemoryValue(
@@ -302,6 +299,13 @@ export class InMemoryQueryBuilder<T extends object>
     // Handle nested paths within the entity data
     const keys = path.split(".");
     let current: unknown = target;
+
+    // If the path starts with "data.", we need to handle it specially
+    if (keys[0] === "data") {
+      // Skip the "data" part and continue with the rest of the path
+      keys.shift();
+    }
+
     for (const key of keys) {
       if (
         current === null ||

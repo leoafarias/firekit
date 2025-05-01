@@ -2,7 +2,6 @@ import fs from "fs/promises";
 import path from "path";
 import { getCollectionName } from "../../decorators";
 import { IDatabaseAdapter } from "../../interfaces/adapter.interface";
-import { Entity } from "../../interfaces/entity.interface";
 import { IIdGenerator } from "../../interfaces/id-generator.interface";
 import { IRepository } from "../../interfaces/repository.interface";
 import { ClassType } from "../../utils/class.type";
@@ -49,7 +48,7 @@ export interface FileSystemAdapterOptions {
  */
 export class FileSystemAdapter implements IDatabaseAdapter {
   private connected = false;
-  private repositories = new Map<string, IRepository<Entity>>();
+  private repositories = new Map<string, IRepository<unknown>>();
   private idGenerator: IIdGenerator;
   private baseDir: string;
   private prettyPrint: boolean;
@@ -114,11 +113,11 @@ export class FileSystemAdapter implements IDatabaseAdapter {
   }
 
   /**
-   * Get a repository for a specific entity type
-   * @param entityClass - The entity class
-   * @returns A repository for the entity
+   * Get a repository for a specific domain entity type
+   * @param entityClass - The domain entity class
+   * @returns A repository for the domain entity
    */
-  getRepository<T extends Entity>(entityClass: ClassType<T>): IRepository<T> {
+  getRepository<T>(entityClass: ClassType<T>): IRepository<T> {
     const collectionName = getCollectionName(entityClass);
     if (!collectionName) {
       throw new Error(
@@ -139,7 +138,7 @@ export class FileSystemAdapter implements IDatabaseAdapter {
 
       this.repositories.set(
         collectionName,
-        repository as unknown as IRepository<Entity>
+        repository as unknown as IRepository<unknown>
       );
     }
 

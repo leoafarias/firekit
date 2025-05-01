@@ -1,6 +1,5 @@
 import { getCollectionName } from "../../decorators";
 import { IDatabaseAdapter } from "../../interfaces/adapter.interface";
-import { Entity } from "../../interfaces/entity.interface";
 import { IIdGenerator } from "../../interfaces/id-generator.interface";
 import { IRepository } from "../../interfaces/repository.interface";
 import { ClassType } from "../../utils/class.type";
@@ -43,7 +42,7 @@ export interface InMemoryAdapterOptions {
 export class InMemoryAdapter implements IDatabaseAdapter {
   private connected = false;
   // Using object type for slightly better safety than any
-  private repositories = new Map<string, IRepository<Entity>>();
+  private repositories = new Map<string, IRepository<unknown>>();
   // Shared storage for all repositories managed by this adapter instance
   private sharedStorage = new Map<string, InMemoryStorageEntry>();
   // ID generator to use for this adapter
@@ -82,7 +81,7 @@ export class InMemoryAdapter implements IDatabaseAdapter {
     return this.connected;
   }
 
-  getRepository<T extends Entity>(entityClass: ClassType<T>): IRepository<T> {
+  getRepository<T>(entityClass: ClassType<T>): IRepository<T> {
     const collectionName = getCollectionName(entityClass);
     if (!collectionName) {
       throw new Error(
@@ -94,7 +93,7 @@ export class InMemoryAdapter implements IDatabaseAdapter {
       // Create and store a new repository instance for this collection
       // Pass the shared storage map to the repository constructor
       const repository = new InMemoryRepository<T>(entityClass);
-      this.repositories.set(collectionName, repository);
+      this.repositories.set(collectionName, repository as IRepository<unknown>);
     }
 
     // Return the existing or newly created repository, casting as needed

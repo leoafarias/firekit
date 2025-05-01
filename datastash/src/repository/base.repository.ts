@@ -3,7 +3,7 @@ import { validate } from "class-validator";
 import { v4 as uuidv4 } from "uuid";
 import { getCollectionName } from "../decorators";
 import { getSubcollectionMetadata } from "../decorators/subcollection.decorator";
-import { Creatable, Entity, Updatable } from "../interfaces/entity.interface";
+import { Creatable, Ref, Updatable } from "../interfaces/entity.interface";
 import { IQueryBuilder } from "../interfaces/query.interface";
 import { IRepository } from "../interfaces/repository.interface";
 import { Stash } from "../stash";
@@ -11,20 +11,18 @@ import { ClassType } from "../utils/class.type";
 
 /**
  * Abstract repository base class implementing the IRepository interface.
- * Works directly with Entity types.
+ * Works with domain entity types and returns Ref<T> objects.
  */
-export abstract class AbstractRepository<E extends Entity>
-  implements IRepository<E>
-{
-  protected readonly entityClass: ClassType<E>;
+export abstract class AbstractRepository<T> implements IRepository<T> {
+  protected readonly entityClass: ClassType<T>;
   protected readonly collectionName: string;
 
   /**
    * Creates a new repository instance
-   * @param entityClass - The entity class constructor
+   * @param entityClass - The domain entity class constructor
    * @throws Error if the entity class is not properly decorated
    */
-  constructor(entityClass: ClassType<E>) {
+  constructor(entityClass: ClassType<T>) {
     this.entityClass = entityClass;
 
     // Get collection metadata
@@ -44,19 +42,19 @@ export abstract class AbstractRepository<E extends Entity>
 
   /**
    * Create a new entity from plain data object
-   * @param data - Data object conforming to Creatable<E> structure (which is E)
+   * @param data - Domain entity data
    * @param id - Optional custom ID
-   * @returns Promise resolving to the created entity
+   * @returns Promise resolving to a reference object containing the domain entity and metadata
    * @throws Error if validation fails
    */
-  async create(data: Creatable<E>, id?: string): Promise<E> {
+  async create(data: Creatable<T>, id?: string): Promise<Ref<T>> {
     // 1. Transform input data to Entity instance
     // Use entityClass directly, no separate DTO class needed
     const entityInstance = plainToInstance(this.entityClass, data);
 
     // 2. Validate Entity instance
     // Validation now happens on the whole entity object
-    const errors = await validate(entityInstance);
+    const errors = await validate(entityInstance as object);
     if (errors.length > 0) {
       throw new Error(`Validation failed: ${JSON.stringify(errors)}`);
     }
@@ -94,23 +92,25 @@ export abstract class AbstractRepository<E extends Entity>
       );
     }
 
-    // 7. Convert database data back to entity format
-    // _fromDatabaseFormat now reconstructs the full entity E
-    return this._fromDatabaseFormat(
-      savedDbData,
-      resultId,
-      createTime,
-      updateTime
-    );
+    // 7. Convert database data to domain entity
+    const domainEntity = this._fromDatabaseFormat(savedDbData);
+
+    // 8. Return as Ref<T>
+    return {
+      id: resultId,
+      createdAt: createTime ?? new Date(),
+      updatedAt: updateTime ?? new Date(),
+      deletedAt: null,
+      data: domainEntity,
+    };
   }
 
   /**
    * Find an entity by ID
    * @param id - Entity ID
-   * @returns Promise resolving to entity or null if not found
+   * @returns Promise resolving to a reference object or null if not found
    */
-  // Return type is now Promise<E | null>
-  async findById(id: string): Promise<E | null> {
+  async findById(id: string): Promise<Ref<T> | null> {
     if (!id) {
       throw new Error("ID must be provided");
     }
@@ -123,23 +123,27 @@ export abstract class AbstractRepository<E extends Entity>
 
     // Fetch metadata
     const metadata = await this._getMetadata(id);
-    // Reconstruct the full entity E
-    return this._fromDatabaseFormat(
-      dbData,
+
+    // Convert to domain entity
+    const domainEntity = this._fromDatabaseFormat(dbData);
+
+    // Return as Ref<T>
+    return {
       id,
-      metadata?.createTime,
-      metadata?.updateTime
-    );
+      createdAt: metadata?.createTime ?? new Date(),
+      updatedAt: metadata?.updateTime ?? new Date(),
+      deletedAt: null,
+      data: domainEntity,
+    };
   }
 
   /**
    * Get an entity by ID, throwing an error if not found
    * @param id - Entity ID
-   * @returns Promise resolving to the entity
+   * @returns Promise resolving to a reference object
    * @throws Error if entity not found
    */
-  // Return type is now Promise<E>
-  async getById(id: string): Promise<E> {
+  async getById(id: string): Promise<Ref<T>> {
     const entity = await this.findById(id);
     if (!entity) {
       throw new Error(
@@ -152,13 +156,11 @@ export abstract class AbstractRepository<E extends Entity>
   /**
    * Update an existing entity from a data object
    * @param id - Entity ID
-   * @param data - Data object conforming to Updatable<E> structure (Partial<E>)
-   * @returns Promise resolving to the updated entity
+   * @param data - Partial domain entity data to update
+   * @returns Promise resolving to a reference object with the updated domain entity
    * @throws Error if entity not found or validation fails
    */
-  // Changed data type from Updatable<Data> to Updatable<E> (Partial<E>)
-  // Return type is now Promise<E>
-  async update(id: string, data: Updatable<E>): Promise<E> {
+  async update(id: string, data: Updatable<T>): Promise<Ref<T>> {
     if (!id) {
       throw new Error("ID must be provided");
     }
@@ -179,7 +181,7 @@ export abstract class AbstractRepository<E extends Entity>
     const partialEntityInstance = plainToInstance(this.entityClass, data);
 
     // 3. Validate Partial Entity instance
-    const errors = await validate(partialEntityInstance, {
+    const errors = await validate(partialEntityInstance as object, {
       skipMissingProperties: true, // Important for partial updates
       whitelist: true,
       // forbidNonWhitelisted: true, // Consider if needed
@@ -201,15 +203,18 @@ export abstract class AbstractRepository<E extends Entity>
       throw new Error(`Entity with ID ${id} not found after update.`);
     }
 
-    // 7. Convert database data back to entity format
+    // 7. Convert database data to domain entity
     const metadata = await this._getMetadata(id);
-    // Reconstruct the full entity E
-    return this._fromDatabaseFormat(
-      updatedDbData,
+    const domainEntity = this._fromDatabaseFormat(updatedDbData);
+
+    // 8. Return as Ref<T>
+    return {
       id,
-      metadata?.createTime,
-      updateTime // Use timestamp from _update result
-    );
+      createdAt: metadata?.createTime ?? new Date(),
+      updatedAt: updateTime ?? new Date(),
+      deletedAt: null,
+      data: domainEntity,
+    };
   }
 
   /**
@@ -228,24 +233,26 @@ export abstract class AbstractRepository<E extends Entity>
 
   /**
    * Find all entities in the collection
-   * @returns Promise resolving to array of entities
+   * @returns Promise resolving to array of reference objects
    */
-  // Return type is now Promise<E[]>
-  async findAll(): Promise<E[]> {
+  async findAll(): Promise<Ref<T>[]> {
     // _findAll returns raw data for all entities
     const results = await this._findAll();
 
-    // Map results to entities
+    // Map results to Ref<T> objects
     return Promise.all(
       results.map(async (result) => {
         const metadata = await this._getMetadata(result.id);
-        // Reconstruct the full entity E
-        return this._fromDatabaseFormat(
-          result.data,
-          result.id,
-          metadata?.createTime,
-          metadata?.updateTime
-        );
+        const domainEntity = this._fromDatabaseFormat(result.data);
+
+        // Return as Ref<T>
+        return {
+          id: result.id,
+          createdAt: metadata?.createTime ?? new Date(),
+          updatedAt: metadata?.updateTime ?? new Date(),
+          deletedAt: null,
+          data: domainEntity,
+        };
       })
     );
   }
@@ -254,18 +261,16 @@ export abstract class AbstractRepository<E extends Entity>
    * Create a query builder for advanced queries
    * @returns Query builder instance
    */
-  // Return type is now IQueryBuilder<E>
-  abstract query(): IQueryBuilder<E>;
+  abstract query(): IQueryBuilder<T>;
 
   /**
-   * Convert Entity instance (or partial) to database format (plain object).
+   * Convert domain entity instance (or partial) to database format (plain object).
    * Adapters can override this for specific database needs (e.g., Date -> Timestamp).
-   * @param entityInstance - The validated Entity instance (E or Partial<E>)
+   * @param entityInstance - The validated domain entity instance (T or Partial<T>)
    * @returns Database format data (plain object)
    */
-  // Changed parameter name and type
   protected _toDatabaseFormat(
-    entityInstance: E | Partial<E>
+    entityInstance: T | Partial<T>
   ): Record<string, unknown> {
     // Convert Entity instance to a plain object using class-transformer rules
     const plain = instanceToPlain(entityInstance);
@@ -274,49 +279,18 @@ export abstract class AbstractRepository<E extends Entity>
   }
 
   /**
-   * Convert database data (plain object) to an entity instance (E).
+   * Convert database data (plain object) to a domain entity instance (T).
    * @param dbData - Database data (plain object representing the entity)
-   * @param id - Entity ID
-   * @param createTime - Creation timestamp
-   * @param updateTime - Update timestamp
-   * @returns Entity instance (E)
+   * @returns Domain entity instance (T)
    */
-  // Added back id, createTime, updateTime parameters, changed return type to E
-  protected _fromDatabaseFormat(
-    dbData: Record<string, unknown>,
-    id: string,
-    createTime?: Date,
-    updateTime?: Date
-  ): E {
+  protected _fromDatabaseFormat(dbData: Record<string, unknown>): T {
     // Adapters might perform initial transformations here (e.g., Timestamp -> Date)
 
-    // Merge dbData with metadata fields before transforming
-    // Ensure metadata fields don't accidentally get overwritten if they also exist in dbData
-    const dataToTransform = {
-      ...dbData,
-      // Explicitly set metadata fields. Handle potential null/undefined from dbData if necessary.
-      id: id,
-      // Only add timestamps if they are provided
-      ...(createTime && { createdAt: createTime }),
-      ...(updateTime && { updatedAt: updateTime }),
-      // Preserve deletedAt if it exists in dbData, otherwise default from Entity might apply
-      ...(dbData.deletedAt !== undefined && { deletedAt: dbData.deletedAt }),
-    };
-
-    // Transform plain data (including metadata) to the Entity instance
-    const entityInstance = plainToInstance(this.entityClass, dataToTransform, {
+    // Transform plain data to the domain entity instance
+    // We don't include metadata fields (id, createdAt, etc.) in the domain entity
+    const entityInstance = plainToInstance(this.entityClass, dbData, {
       // excludeExtraneousValues: true, // Enable if using @Expose exclusively
     });
-
-    // Ensure essential metadata is correctly assigned if not handled by plainToInstance
-    // (e.g., if metadata fields are not decorated with @Field or similar)
-    if (!entityInstance.id) entityInstance.id = id;
-    if (createTime && !entityInstance.createdAt)
-      entityInstance.createdAt = createTime;
-    if (updateTime && !entityInstance.updatedAt)
-      entityInstance.updatedAt = updateTime;
-    // deletedAt handling depends on whether it's part of the main dbData structure
-    // If not explicitly set, it might default to null based on Entity definition
 
     return entityInstance;
   }

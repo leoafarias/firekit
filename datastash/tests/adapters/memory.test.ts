@@ -16,7 +16,6 @@ import "reflect-metadata";
 import { Stash } from "../../src";
 import { InMemoryAdapter } from "../../src/adapters/memory/memory.adapter";
 import { Collection, Field } from "../../src/decorators";
-import { BaseEntity } from "../../src/entities/base.entity";
 import { Creatable } from "../../src/interfaces/entity.interface";
 import {
   ComparisonOperator,
@@ -35,7 +34,7 @@ class NestedData {
 }
 
 @Collection({ name: "test_data" })
-class TestDataEntity extends BaseEntity {
+class TestDataEntity {
   @Field()
   @IsString()
   @IsNotEmpty()
@@ -106,12 +105,14 @@ describe("InMemoryAdapter Repository Tests", () => {
       const created = await repo.create(initialData);
 
       expect(created.id).toBeDefined();
-      expect(created.name).toBe("Test Create");
-      expect(created.count).toBe(10);
-      expect(created.isActive).toBe(true);
-      expect(created.tags).toEqual(["a", "b"]);
-      expect(created.eventTimestamp).toEqual(new Date("2023-01-01T10:00:00Z"));
-      expect(created.nested.nestedProp).toBe("nested create");
+      expect(created.data.name).toBe("Test Create");
+      expect(created.data.count).toBe(10);
+      expect(created.data.isActive).toBe(true);
+      expect(created.data.tags).toEqual(["a", "b"]);
+      expect(created.data.eventTimestamp).toEqual(
+        new Date("2023-01-01T10:00:00Z")
+      );
+      expect(created.data.nested.nestedProp).toBe("nested create");
       expect(created.createdAt).toBeInstanceOf(Date);
       expect(created.updatedAt).toBeInstanceOf(Date);
       expect(created.createdAt.getTime()).toBeCloseTo(
@@ -132,8 +133,8 @@ describe("InMemoryAdapter Repository Tests", () => {
 
       const found = await repo.findById(created.id);
       expect(found).not.toBeNull();
-      expect(found?.name).toBe("Test Find");
-      expect(found?.nested.nestedProp).toBe("find me");
+      expect(found?.data.name).toBe("Test Find");
+      expect(found?.data.nested.nestedProp).toBe("find me");
     });
 
     it("should return null when finding by non-existent ID", async () => {
@@ -170,13 +171,13 @@ describe("InMemoryAdapter Repository Tests", () => {
       const updatedDoc = await repo.update(created.id, updatedData);
 
       expect(updatedDoc).not.toBeNull();
-      expect(updatedDoc?.name).toBe("Updated Name");
-      expect(updatedDoc?.count).toBe(200);
-      expect(updatedDoc?.isActive).toBe(false);
-      expect(updatedDoc?.tags).toEqual(["c", "d"]);
-      expect(updatedDoc?.eventTimestamp).toEqual(new Date("2024-01-02"));
-      expect(updatedDoc?.nested.nestedProp).toBe("after update");
-      expect(updatedDoc?.optionalField).toBe("updated optional");
+      expect(updatedDoc?.data.name).toBe("Updated Name");
+      expect(updatedDoc?.data.count).toBe(200);
+      expect(updatedDoc?.data.isActive).toBe(false);
+      expect(updatedDoc?.data.tags).toEqual(["c", "d"]);
+      expect(updatedDoc?.data.eventTimestamp).toEqual(new Date("2024-01-02"));
+      expect(updatedDoc?.data.nested.nestedProp).toBe("after update");
+      expect(updatedDoc?.data.optionalField).toBe("updated optional");
       expect(updatedDoc?.updatedAt.getTime()).toBeGreaterThan(
         updateTimeBefore.getTime()
       );
@@ -199,16 +200,16 @@ describe("InMemoryAdapter Repository Tests", () => {
       if (!fetched) return;
 
       const dataToUpdate: Partial<TestDataEntity> = {
-        nested: { ...fetched.nested, nestedProp: "updated nested" },
+        nested: { ...fetched.data.nested, nestedProp: "updated nested" },
         count: 55,
       };
 
       const updated = await repo.update(created.id, dataToUpdate);
 
       expect(updated).not.toBeNull();
-      expect(updated?.count).toBe(55);
-      expect(updated?.nested.nestedProp).toBe("updated nested");
-      expect(updated?.nested.nestedNum).toBe(500);
+      expect(updated?.data.count).toBe(55);
+      expect(updated?.data.nested.nestedProp).toBe("updated nested");
+      expect(updated?.data.nested.nestedNum).toBe(500);
     });
 
     it("should throw error when updating a non-existent ID", async () => {
@@ -305,117 +306,126 @@ describe("InMemoryAdapter Repository Tests", () => {
       const repo = Stash.getRepository(TestDataEntity);
       const results = await repo
         .query()
-        .where("name", ComparisonOperator.Equals, "Alice")
+        .where("data.name", ComparisonOperator.Equals, "Alice")
         .getResults();
       expect(results.length).toBe(1);
-      expect(results[0].name).toBe("Alice");
+      expect(results[0].data.name).toBe("Alice");
     });
 
     it("should query by simple field (NotEquals)", async () => {
       const repo = Stash.getRepository(TestDataEntity);
       const results = await repo
         .query()
-        .where("name", ComparisonOperator.NotEquals, "Alice")
+        .where("data.name", ComparisonOperator.NotEquals, "Alice")
         .getResults();
       expect(results.length).toBe(4);
-      expect(results.some((r) => r.name === "Alice")).toBe(false);
+      expect(results.some((r) => r.data.name === "Alice")).toBe(false);
     });
 
     it("should query by number field (GreaterThan)", async () => {
       const repo = Stash.getRepository(TestDataEntity);
       const results = await repo
         .query()
-        .where("count", ComparisonOperator.GreaterThan, 8)
+        .where("data.count", ComparisonOperator.GreaterThan, 8)
         .getResults();
       expect(results.length).toBe(2);
-      expect(results.some((r) => r.name === "Bob")).toBe(true);
-      expect(results.some((r) => r.name === "David")).toBe(true);
+      expect(results.some((r) => r.data.name === "Bob")).toBe(true);
+      expect(results.some((r) => r.data.name === "David")).toBe(true);
     });
 
     it("should query by boolean field", async () => {
       const repo = Stash.getRepository(TestDataEntity);
       const results = await repo
         .query()
-        .where("isActive", ComparisonOperator.Equals, true)
+        .where("data.isActive", ComparisonOperator.Equals, true)
         .getResults();
       expect(results.length).toBe(3);
-      expect(results.every((r) => r.isActive === true)).toBe(true);
+      expect(results.every((r) => r.data.isActive === true)).toBe(true);
     });
 
     it("should query by nested field path (Equals)", async () => {
       const repo = Stash.getRepository(TestDataEntity);
       const results = await repo
         .query()
-        .where("nested.nestedProp", ComparisonOperator.Equals, "B")
+        .where("data.nested.nestedProp", ComparisonOperator.Equals, "B")
         .getResults();
       expect(results.length).toBe(1);
-      expect(results[0].name).toBe("Bob");
-      expect(results[0].nested.nestedProp).toBe("B");
+      expect(results[0].data.name).toBe("Bob");
+      expect(results[0].data.nested.nestedProp).toBe("B");
     });
 
     it("should query by nested field path (GreaterThanOrEqual)", async () => {
       const repo = Stash.getRepository(TestDataEntity);
-      const results = await repo
+      const resultsRef = await repo
         .query()
-        .where("nested.nestedNum", ComparisonOperator.GreaterThanOrEqual, 150)
+        .where(
+          "data.nested.nestedNum",
+          ComparisonOperator.GreaterThanOrEqual,
+          150
+        )
         .getResults();
+      const results = resultsRef;
       expect(results.length).toBe(1);
-      expect(results[0].name).toBe("David");
+      expect(results[0].data.name).toBe("David");
     });
 
     it("should query using IN operator", async () => {
       const repo = Stash.getRepository(TestDataEntity);
       const results = await repo
         .query()
-        .where("name", ComparisonOperator.In, ["Alice", "Eve"])
+        .where("data.name", ComparisonOperator.In, ["Alice", "Eve"])
         .getResults();
       expect(results.length).toBe(2);
-      expect(results.map((r) => r.name).sort()).toEqual(["Alice", "Eve"]);
+      expect(results.map((r) => r.data.name).sort()).toEqual(["Alice", "Eve"]);
     });
 
     it("should query using NotIn operator", async () => {
       const repo = Stash.getRepository(TestDataEntity);
       const results = await repo
         .query()
-        .where("name", ComparisonOperator.NotIn, ["Alice", "Eve", "Charlie"])
+        .where("data.name", ComparisonOperator.NotIn, [
+          "Alice",
+          "Eve",
+          "Charlie",
+        ])
         .getResults();
       expect(results.length).toBe(2);
-      expect(results.map((r) => r.name).sort()).toEqual(["Bob", "David"]);
+      expect(results.map((r) => r.data.name).sort()).toEqual(["Bob", "David"]);
     });
 
     it("should query using ArrayContains operator", async () => {
       const repo = Stash.getRepository(TestDataEntity);
       const results = await repo
         .query()
-        .where("tags", ComparisonOperator.ArrayContains, "c")
+        .where("data.tags", ComparisonOperator.ArrayContains, "c")
         .getResults();
       expect(results.length).toBe(2);
-      expect(results.some((r) => r.name === "Bob")).toBe(true);
-      expect(results.some((r) => r.name === "Charlie")).toBe(true);
+      expect(results.some((r) => r.data.name === "Bob")).toBe(true);
+      expect(results.some((r) => r.data.name === "Charlie")).toBe(true);
     });
 
     it("should query using ArrayContainsAny operator", async () => {
       const repo = Stash.getRepository(TestDataEntity);
       const results = await repo
         .query()
-        .where("tags", ComparisonOperator.ArrayContainsAny, ["c", "d"])
+        .where("data.tags", ComparisonOperator.ArrayContainsAny, ["c", "d"])
         .getResults();
       expect(results.length).toBe(3);
-      expect(results.some((r) => r.name === "Bob")).toBe(true);
-      expect(results.some((r) => r.name === "Charlie")).toBe(true);
-      expect(results.some((r) => r.name === "David")).toBe(true);
+      expect(results.some((r) => r.data.name === "Bob")).toBe(true);
+      expect(results.some((r) => r.data.name === "Charlie")).toBe(true);
+      expect(results.some((r) => r.data.name === "David")).toBe(true);
     });
 
     it("should combine multiple where clauses (AND)", async () => {
       const repo = Stash.getRepository(TestDataEntity);
       const results = await repo
         .query()
-        .where("isActive", ComparisonOperator.Equals, true)
-        .where("count", ComparisonOperator.Equals, 5)
+        .where("data.isActive", ComparisonOperator.Equals, true)
+        .where("data.count", ComparisonOperator.Equals, 5)
         .getResults();
       expect(results.length).toBe(2);
-      expect(results.some((r) => r.name === "Alice")).toBe(true);
-      expect(results.some((r) => r.name === "Charlie")).toBe(true);
+      expect(results.some((r) => r.data.name === "Alice")).toBe(true);
+      expect(results.some((r) => r.data.name === "Charlie")).toBe(true);
     });
 
     it("should apply limit", async () => {
@@ -428,43 +438,45 @@ describe("InMemoryAdapter Repository Tests", () => {
       const repo = Stash.getRepository(TestDataEntity);
       const allSorted = await repo
         .query()
-        .orderBy("name", SortDirection.Ascending)
+        .orderBy("data.name", SortDirection.Ascending)
         .getResults();
+
       const skippedResults = await repo
         .query()
-        .orderBy("name", SortDirection.Ascending)
+        .orderBy("data.name", SortDirection.Ascending)
         .skip(2)
         .getResults();
       expect(skippedResults.length).toBe(allSorted.length - 2);
-      expect(skippedResults[0].name).toBe(allSorted[2].name);
+      expect(skippedResults[0].data.name).toBe(allSorted[2].data.name);
     });
 
     it("should apply skip and limit", async () => {
       const repo = Stash.getRepository(TestDataEntity);
       const allSorted = await repo
         .query()
-        .orderBy("name", SortDirection.Ascending)
+        .orderBy("data.name", SortDirection.Ascending)
         .getResults();
+
       const paginatedResults = await repo
         .query()
-        .orderBy("name", SortDirection.Ascending)
+        .orderBy("data.name", SortDirection.Ascending)
         .skip(1)
         .limit(2)
         .getResults();
       expect(paginatedResults.length).toBe(2);
-      expect(paginatedResults[0].name).toBe(allSorted[1].name);
-      expect(paginatedResults[1].name).toBe(allSorted[2].name);
+      expect(paginatedResults[0].data.name).toBe(allSorted[1].data.name);
+      expect(paginatedResults[1].data.name).toBe(allSorted[2].data.name);
     });
 
     it("should apply orderBy (Ascending)", async () => {
       const repo = Stash.getRepository(TestDataEntity);
       const results = await repo
         .query()
-        .orderBy("count", SortDirection.Ascending)
+        .orderBy("data.count", SortDirection.Ascending)
         .getResults();
       expect(results.length).toBe(5);
-      expect(results.map((r) => r.count)).toEqual([5, 5, 8, 10, 15]);
-      expect(results.map((r) => r.name)).toEqual([
+      expect(results.map((r) => r.data.count)).toEqual([5, 5, 8, 10, 15]);
+      expect(results.map((r) => r.data.name)).toEqual([
         "Alice",
         "Charlie",
         "Eve",
@@ -477,10 +489,10 @@ describe("InMemoryAdapter Repository Tests", () => {
       const repo = Stash.getRepository(TestDataEntity);
       const results = await repo
         .query()
-        .orderBy("eventTimestamp", SortDirection.Descending)
+        .orderBy("data.eventTimestamp", SortDirection.Descending)
         .getResults();
       expect(results.length).toBe(5);
-      expect(results.map((r) => r.name)).toEqual([
+      expect(results.map((r) => r.data.name)).toEqual([
         "Eve",
         "David",
         "Charlie",
@@ -493,11 +505,11 @@ describe("InMemoryAdapter Repository Tests", () => {
       const repo = Stash.getRepository(TestDataEntity);
       const results = await repo
         .query()
-        .orderBy("isActive", SortDirection.Descending)
-        .orderBy("count", SortDirection.Ascending)
+        .orderBy("data.isActive", SortDirection.Descending)
+        .orderBy("data.count", SortDirection.Ascending)
         .getResults();
       expect(results.length).toBe(5);
-      expect(results.map((r) => r.name)).toEqual([
+      expect(results.map((r) => r.data.name)).toEqual([
         "Alice",
         "Charlie",
         "Eve",
@@ -510,19 +522,19 @@ describe("InMemoryAdapter Repository Tests", () => {
       const repo = Stash.getRepository(TestDataEntity);
       const results = await repo
         .query()
-        .orderBy("nested.nestedNum", SortDirection.Descending)
+        .orderBy("data.nested.nestedNum", SortDirection.Descending)
         .getResults();
 
-      const names = results.map((r) => r.name);
+      const names = results.map((r) => r.data.name);
       expect(names.indexOf("David")).toBeLessThan(names.indexOf("Bob"));
-      expect(results.filter((r) => r.nested.nestedNum).length).toBe(2);
+      expect(results.filter((r) => r.data.nested.nestedNum).length).toBe(2);
     });
 
     it("should handle query with no results", async () => {
       const repo = Stash.getRepository(TestDataEntity);
       const results = await repo
         .query()
-        .where("name", ComparisonOperator.Equals, "NonExistent")
+        .where("data.name", ComparisonOperator.Equals, "NonExistent")
         .getResults();
       expect(results.length).toBe(0);
     });
@@ -531,7 +543,7 @@ describe("InMemoryAdapter Repository Tests", () => {
       const repo = Stash.getRepository(TestDataEntity);
       const count = await repo
         .query()
-        .where("isActive", ComparisonOperator.Equals, true)
+        .where("data.isActive", ComparisonOperator.Equals, true)
         .count();
       expect(count).toBe(3);
     });
@@ -540,7 +552,7 @@ describe("InMemoryAdapter Repository Tests", () => {
       const repo = Stash.getRepository(TestDataEntity);
       const count = await repo
         .query()
-        .where("isActive", ComparisonOperator.Equals, true)
+        .where("data.isActive", ComparisonOperator.Equals, true)
         .limit(2)
         .count();
       expect(count).toBe(2);
@@ -550,7 +562,7 @@ describe("InMemoryAdapter Repository Tests", () => {
       const repo = Stash.getRepository(TestDataEntity);
       const count = await repo
         .query()
-        .where("isActive", ComparisonOperator.Equals, true)
+        .where("data.isActive", ComparisonOperator.Equals, true)
         .skip(1)
         .count();
       expect(count).toBe(2);
@@ -560,7 +572,7 @@ describe("InMemoryAdapter Repository Tests", () => {
       const repo = Stash.getRepository(TestDataEntity);
       const count = await repo
         .query()
-        .where("isActive", ComparisonOperator.Equals, true)
+        .where("data.isActive", ComparisonOperator.Equals, true)
         .skip(1)
         .limit(1)
         .count();
@@ -571,7 +583,7 @@ describe("InMemoryAdapter Repository Tests", () => {
       const repo = Stash.getRepository(TestDataEntity);
       const originalQuery = repo
         .query()
-        .where("count", ComparisonOperator.GreaterThan, 5);
+        .where("data.count", ComparisonOperator.GreaterThan, 5);
       const clonedQuery = originalQuery.clone();
 
       const limitedOriginalQuery = originalQuery.limit(1);
@@ -596,7 +608,7 @@ describe("InMemoryAdapter Repository Tests", () => {
   describe("ID Generation", () => {
     it("should use default UUID generator if adapter has none", async () => {
       const repo = Stash.getRepository(TestDataEntity);
-      const entity = await repo.create({
+      const entityRef = await repo.create({
         name: "uuid-test",
         count: 0,
         isActive: false,
@@ -604,6 +616,7 @@ describe("InMemoryAdapter Repository Tests", () => {
         eventTimestamp: new Date(),
         nested: { nestedProp: "default" },
       });
+      const entity = entityRef;
       expect(entity.id).toMatch(
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
       );
@@ -626,6 +639,7 @@ describe("InMemoryAdapter Repository Tests", () => {
         eventTimestamp: new Date(),
         nested: { nestedProp: "s1" },
       });
+
       const entity2 = await repo.create({
         name: "seq-2",
         count: 2,

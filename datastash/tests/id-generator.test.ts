@@ -2,10 +2,7 @@ import "reflect-metadata";
 import { Stash } from "../src";
 import { InMemoryAdapter } from "../src/adapters/memory/memory.adapter"; // Import adapter
 import { Collection, Field } from "../src/decorators"; // Removed unused ID import
-// Removed Entity import as we use BaseEntity
-// import { Entity } from "../src/interfaces/entity.interface"; // Import base Entity
-import { BaseEntity } from "../src/entities/base.entity"; // Import BaseEntity
-import { Creatable } from "../src/interfaces/entity.interface"; // Import Creatable
+import { Creatable } from "../src/interfaces/entity.interface"; // Import Creatable and Ref
 
 // Mock the uuid library
 jest.mock("uuid", () => ({
@@ -14,11 +11,9 @@ jest.mock("uuid", () => ({
 // Import v4 *after* mocking
 import { v4 as uuidv4 } from "uuid";
 
-// Define the actual Entity class using flat structure
+// Define the domain entity class
 @Collection({ name: "test_entities" })
-class TestEntity extends BaseEntity {
-  // id, createdAt, updatedAt, deletedAt inherited
-
+class TestEntity {
   @Field()
   name!: string;
 }
@@ -58,7 +53,7 @@ describe("Repository ID Generation", () => {
     expect(uuidv4).toHaveBeenCalledTimes(1);
     expect(entity.id).toBe(mockUuid);
     // Access property directly
-    expect(entity.name).toBe("test-uuid");
+    expect(entity.data.name).toBe("test-uuid");
   });
 
   // Add a test for custom ID usage if not present
@@ -68,7 +63,7 @@ describe("Repository ID Generation", () => {
     const entity = await repo.create({ name: "custom-id" }, customId);
     expect(uuidv4).not.toHaveBeenCalled(); // Should not call uuid generator
     expect(entity.id).toBe(customId);
-    expect(entity.name).toBe("custom-id");
+    expect(entity.data.name).toBe("custom-id");
   });
 
   // Add a test for adapter-provided ID (e.g., sequential)
@@ -82,6 +77,7 @@ describe("Repository ID Generation", () => {
 
     const repo = Stash.getRepository(TestEntity);
     const entity1 = await repo.create({ name: "item1" });
+
     const entity2 = await repo.create({ name: "item2" });
 
     expect(uuidv4).not.toHaveBeenCalled(); // Should not call uuid generator

@@ -9,16 +9,21 @@ export interface Entity {
 }
 
 /**
- * Type for creating a new entity - excludes repository-managed fields.
- * T represents the entity's data type.
+ * Reference interface that extends Entity and adds a data property
+ * T represents the domain entity type
  */
-export type Creatable<T extends Entity> = Omit<
-  T,
-  "id" | "createdAt" | "updatedAt" | "deletedAt"
->;
+export interface Ref<T> extends Entity {
+  data: T;
+}
 
 /**
- * Interface for updating an entity - partial version of the data
- * T represents the entity's data type
+ * Type for creating a new entity - now represents just the domain data
+ * T represents the domain entity type
  */
-export type Updatable<T extends Entity> = Partial<T>;
+export type Creatable<T> = T;
+
+/**
+ * Interface for updating an entity - partial version of the domain data
+ * T represents the domain entity type
+ */
+export type Updatable<T> = Partial<T>;
